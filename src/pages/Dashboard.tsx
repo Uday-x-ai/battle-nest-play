@@ -62,9 +62,6 @@ export default function Dashboard() {
   const [submittingDeposit, setSubmittingDeposit] = useState(false);
   const [transactionRef, setTransactionRef] = useState("");
   const [verifyingPayment, setVerifyingPayment] = useState(false);
-  const [autoVerifying, setAutoVerifying] = useState(false);
-  const [pollCount, setPollCount] = useState(0);
-  const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutes in seconds
   const { user, profile, loading, refreshProfile } = useAuth();
   const { transactions, refetch: refetchWallet } = useWallet();
   const { requests: withdrawalRequests, createRequest: createWithdrawalRequest } = useWithdrawalRequests();
@@ -75,9 +72,6 @@ export default function Dashboard() {
   // Generate new transaction ref when deposit dialog opens
   const generateNewRef = useCallback(() => {
     setTransactionRef(generateTransactionRef());
-    setPollCount(0);
-    setAutoVerifying(false);
-    setTimeRemaining(300);
   }, []);
 
   // Verify payment with API
@@ -114,7 +108,6 @@ export default function Dashboard() {
             setDepositDialogOpen(false);
             setDepositAmount("");
             setUpiTransactionId("");
-            setAutoVerifying(false);
             await refetchWallet();
             await refreshProfile();
             
@@ -168,62 +161,6 @@ export default function Dashboard() {
       }
     }
   }, [transactionRef, depositAmount, createDepositRequest, refetchWallet, refreshProfile]);
-
-  // Auto-poll for payment verification (max 5 minutes = 60 polls at 5 second intervals)
-  const MAX_POLLS = 60;
-  
-  // Timer that updates every second
-  useEffect(() => {
-    if (!depositDialogOpen || !transactionRef || !depositAmount || !autoVerifying) {
-      return;
-    }
-
-    if (timeRemaining <= 0) {
-      setAutoVerifying(false);
-      toast.info("Auto-verification timed out.");
-      return;
-    }
-
-    const timerInterval = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          setAutoVerifying(false);
-          toast.info("Auto-verification timed out.");
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timerInterval);
-  }, [depositDialogOpen, transactionRef, depositAmount, autoVerifying, timeRemaining]);
-
-  // Separate polling for API calls every 2.5 seconds
-  useEffect(() => {
-    if (!depositDialogOpen || !transactionRef || !depositAmount || !autoVerifying || timeRemaining <= 0) {
-      return;
-    }
-
-    const pollInterval = setInterval(async () => {
-      const success = await verifyPayment(true);
-      if (success) {
-        setAutoVerifying(false);
-      }
-    }, 2500);
-
-    return () => clearInterval(pollInterval);
-  }, [depositDialogOpen, transactionRef, depositAmount, autoVerifying, verifyPayment, timeRemaining]);
-
-  // Start auto-verifying when dialog opens
-  useEffect(() => {
-    if (depositDialogOpen && transactionRef) {
-      // Start auto-verification after 3 seconds
-      const timeout = setTimeout(() => {
-        setAutoVerifying(true);
-      }, 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [depositDialogOpen, transactionRef]);
 
   useEffect(() => {
     if (profile?.upi_id) {
@@ -800,40 +737,24 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Auto-verification Status */}
-            {autoVerifying && (
-              <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-green-500" />
-                    <span className="text-sm text-green-600 dark:text-green-400">
-                      Auto-verifying payment...
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')} left
-                  </div>
-                </div>
-                <div className="mt-2 w-full bg-muted rounded-full h-1.5">
-                  <div 
-                    className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
-                    style={{ width: `${(timeRemaining / 300) * 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Timeout message */}
-            {!autoVerifying && timeRemaining <= 0 && (
-              <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm text-yellow-600 dark:text-yellow-400">
-                    Auto-verification timed out.
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* Verify Payment Button */}
+            <Button
+              className="w-full bg-green-500 hover:bg-green-600 text-white"
+              onClick={() => verifyPayment(false)}
+              disabled={verifyingPayment}
+            >
+              {verifyingPayment ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Verify Payment
+                </>
+              )}
+            </Button>
 
             {/* Generate New QR */}
             <Button

@@ -39,6 +39,30 @@ export function useWallet() {
 
   useEffect(() => {
     fetchTransactions();
+
+    if (!user) return;
+
+    // Subscribe to real-time transaction updates
+    const channel = supabase
+      .channel(`wallet-transactions-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'wallet_transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('New transaction:', payload);
+          setTransactions(prev => [payload.new as WalletTransaction, ...prev].slice(0, 20));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const deposit = async (amount: number) => {

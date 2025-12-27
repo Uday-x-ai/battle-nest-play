@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Wallet, Trophy, User, Shield, Gamepad2, LogOut } from "lucide-react";
+import { Menu, X, Wallet, Trophy, User, Shield, Gamepad2, LogOut, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 const navLinks = [
   { href: "/", label: "Home", icon: Gamepad2 },
   { href: "/tournaments", label: "Tournaments", icon: Trophy },
-  { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
+  { href: "/leaderboard", label: "Leaderboard", icon: BarChart3 },
   { href: "/dashboard", label: "Dashboard", icon: User },
 ];
 

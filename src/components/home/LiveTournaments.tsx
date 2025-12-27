@@ -40,6 +40,49 @@ export function LiveTournaments() {
     };
 
     fetchTournaments();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('live-tournaments-home')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tournaments'
+        },
+        (payload) => {
+          console.log('Live tournament update:', payload);
+          if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as DbTournament;
+            // Only show live/upcoming tournaments
+            if (updated.status === 'live' || updated.status === 'upcoming') {
+              setTournaments(prev => {
+                const exists = prev.find(t => t.id === updated.id);
+                if (exists) {
+                  return prev.map(t => t.id === updated.id ? updated : t);
+                }
+                return [...prev, updated].slice(0, 4);
+              });
+            } else {
+              // Remove if status changed to completed
+              setTournaments(prev => prev.filter(t => t.id !== updated.id));
+            }
+          } else if (payload.eventType === 'INSERT') {
+            const newTournament = payload.new as DbTournament;
+            if (newTournament.status === 'live' || newTournament.status === 'upcoming') {
+              setTournaments(prev => [...prev, newTournament].slice(0, 4));
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setTournaments(prev => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const getStartTimeDisplay = (startTime: string) => {

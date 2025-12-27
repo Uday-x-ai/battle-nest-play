@@ -58,6 +58,35 @@ export function useTournaments() {
 
   useEffect(() => {
     fetchTournaments();
+
+    // Subscribe to real-time updates for tournaments
+    const channel = supabase
+      .channel('tournaments-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tournaments'
+        },
+        (payload) => {
+          console.log('Tournament update:', payload);
+          if (payload.eventType === 'INSERT') {
+            setTournaments(prev => [...prev, payload.new as Tournament]);
+          } else if (payload.eventType === 'UPDATE') {
+            setTournaments(prev => 
+              prev.map(t => t.id === payload.new.id ? payload.new as Tournament : t)
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setTournaments(prev => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

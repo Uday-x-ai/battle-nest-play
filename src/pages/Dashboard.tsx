@@ -266,30 +266,37 @@ export default function Dashboard() {
                     <CreditCard className="w-5 h-5" />
                     Withdrawal Requests
                   </h3>
+                  {withdrawalRequests.length > 5 && (
+                    <span className="text-xs text-muted-foreground">
+                      {withdrawalRequests.length} requests
+                    </span>
+                  )}
                 </div>
-                <div className="space-y-3">
-                  {withdrawalRequests.slice(0, 5).map((req) => (
-                    <div
-                      key={req.id}
-                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
-                          <ArrowUpRight className="w-5 h-5 text-destructive" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-foreground">
-                            ₹{Number(req.amount).toLocaleString()}
+                <ScrollArea className={withdrawalRequests.length > 5 ? "h-[320px]" : ""}>
+                  <div className="space-y-3 pr-4">
+                    {withdrawalRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                            <ArrowUpRight className="w-5 h-5 text-destructive" />
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(req.created_at).toLocaleDateString()} • {req.upi_id}
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              ₹{Number(req.amount).toLocaleString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(req.created_at).toLocaleDateString()} • {req.upi_id}
+                            </div>
                           </div>
                         </div>
+                        {getRequestStatusBadge(req.status)}
                       </div>
-                      {getRequestStatusBadge(req.status)}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
             )}
 

@@ -53,21 +53,21 @@ export function Navbar() {
           </div>
 
           {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <Link to="/dashboard">
-              <Button variant="neon" size="sm" className="gap-2">
+              <Button variant="neon" size="sm" className="gap-1.5 px-3">
                 <Wallet className="w-4 h-4" />
                 <span>₹500</span>
               </Button>
             </Link>
             <Link to="/admin">
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 px-3">
                 <Shield className="w-4 h-4" />
                 Admin
               </Button>
             </Link>
             <Link to="/auth">
-              <Button variant="fire" size="sm">
+              <Button variant="fire" size="sm" className="px-4">
                 Login
               </Button>
             </Link>

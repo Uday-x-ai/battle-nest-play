@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -14,53 +14,104 @@ import {
   CheckCircle,
   AlertCircle,
   Lock,
+  Loader2,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useTournaments } from "@/hooks/useTournaments";
 
-const tournament = {
-  id: "1",
-  title: "Fire Storm Championship",
-  type: "squad",
-  entryFee: 50,
-  prizePool: 5000,
-  maxPlayers: 100,
-  currentPlayers: 87,
-  startTime: "Starting in 15 min",
-  status: "live",
-  roomId: "FIRE2024",
-  roomPassword: "storm99",
-  rules: [
-    "No teaming allowed",
-    "No hacking or exploiting",
-    "Respect all players",
-    "Winner decided by total kills",
-    "Top 10 players win prizes",
-  ],
-  prizeDistribution: [
-    { position: "1st", prize: 2000 },
-    { position: "2nd", prize: 1000 },
-    { position: "3rd", prize: 500 },
-    { position: "4th-5th", prize: 250 },
-    { position: "6th-10th", prize: 150 },
-  ],
-  registeredPlayers: [
-    { name: "ProSniper", avatar: "PS" },
-    { name: "FireBeast99", avatar: "FB" },
-    { name: "HeadshotKing", avatar: "HK" },
-    { name: "ShadowNinja", avatar: "SN" },
-    { name: "EliteGamer", avatar: "EG" },
-  ],
-};
+interface RegisteredUser {
+  user_id: string;
+  registered_at: string;
+  profile?: {
+    username: string | null;
+    game_name: string | null;
+    avatar_url: string | null;
+  };
+}
 
 export default function TournamentDetail() {
   const { id } = useParams();
-  const [isJoined, setIsJoined] = useState(false);
+  const { user, isAdmin } = useAuth();
+  const { tournaments, loading: tournamentsLoading, isRegistered, joinTournament, leaveTournament, registrations } = useTournaments();
   const [copied, setCopied] = useState<string | null>(null);
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [joining, setJoining] = useState(false);
 
-  const handleJoin = () => {
-    setIsJoined(true);
-    toast.success("Successfully joined the tournament!");
+  const tournament = tournaments.find((t) => t.id === id);
+  const isJoined = id ? isRegistered(id) : false;
+
+  // Fetch registered users for admin view
+  useEffect(() => {
+    const fetchRegisteredUsers = async () => {
+      if (!id || !isAdmin) return;
+      
+      setLoadingUsers(true);
+      try {
+        const { data, error } = await supabase
+          .from("tournament_registrations")
+          .select(`
+            user_id,
+            registered_at
+          `)
+          .eq("tournament_id", id);
+
+        if (error) throw error;
+
+        // Fetch profiles for each user
+        if (data && data.length > 0) {
+          const userIds = data.map((r) => r.user_id);
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("user_id, username, game_name, avatar_url")
+            .in("user_id", userIds);
+
+          if (profilesError) throw profilesError;
+
+          const usersWithProfiles = data.map((reg) => ({
+            ...reg,
+            profile: profiles?.find((p) => p.user_id === reg.user_id),
+          }));
+
+          setRegisteredUsers(usersWithProfiles);
+        } else {
+          setRegisteredUsers([]);
+        }
+      } catch (error) {
+        console.error("Error fetching registered users:", error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchRegisteredUsers();
+  }, [id, isAdmin]);
+
+  const handleJoin = async () => {
+    if (!id || !user) {
+      toast.error("Please login to join the tournament");
+      return;
+    }
+    setJoining(true);
+    const success = await joinTournament(id);
+    if (success) {
+      toast.success("Successfully joined the tournament!");
+    }
+    setJoining(false);
+  };
+
+  const handleLeave = async () => {
+    if (!id) return;
+    setJoining(true);
+    const success = await leaveTournament(id);
+    if (success) {
+      toast.success("Successfully left the tournament!");
+    }
+    setJoining(false);
   };
 
   const copyToClipboard = (text: string, type: string) => {
@@ -70,7 +121,57 @@ export default function TournamentDetail() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const spotsLeft = tournament.maxPlayers - tournament.currentPlayers;
+  if (tournamentsLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!tournament) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">Tournament Not Found</h1>
+            <Link to="/tournaments">
+              <Button variant="outline">Back to Tournaments</Button>
+            </Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  const spotsLeft = tournament.max_players - (tournament.current_players || 0);
+
+  const prizeDistribution = [
+    { position: "1st", prize: Math.round((tournament.prize_pool || 0) * 0.4) },
+    { position: "2nd", prize: Math.round((tournament.prize_pool || 0) * 0.2) },
+    { position: "3rd", prize: Math.round((tournament.prize_pool || 0) * 0.1) },
+    { position: "4th-5th", prize: Math.round((tournament.prize_pool || 0) * 0.05) },
+    { position: "6th-10th", prize: Math.round((tournament.prize_pool || 0) * 0.03) },
+  ];
+
+  const rules = [
+    "No teaming allowed",
+    "No hacking or exploiting",
+    "Respect all players",
+    "Winner decided by total kills",
+    "Top 10 players win prizes",
+  ];
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "U";
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString();
+  };
 
   return (
     <Layout>
@@ -107,6 +208,22 @@ export default function TournamentDetail() {
                     LIVE
                   </Badge>
                 )}
+                {tournament.status === "upcoming" && (
+                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/50">
+                    UPCOMING
+                  </Badge>
+                )}
+                {tournament.status === "completed" && (
+                  <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/50">
+                    COMPLETED
+                  </Badge>
+                )}
+                {isAdmin && (
+                  <Badge className="bg-primary/20 text-primary border-primary/50 gap-1.5">
+                    <Shield className="w-3 h-3" />
+                    ADMIN VIEW
+                  </Badge>
+                )}
               </div>
 
               <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-4">
@@ -118,7 +235,7 @@ export default function TournamentDetail() {
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
                   <Trophy className="w-5 h-5 text-primary mx-auto mb-2" />
                   <div className="font-display font-bold text-xl gradient-text">
-                    ₹{tournament.prizePool.toLocaleString()}
+                    ₹{(tournament.prize_pool || 0).toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground uppercase">
                     Prize Pool
@@ -127,7 +244,7 @@ export default function TournamentDetail() {
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
                   <Zap className="w-5 h-5 text-neon-cyan mx-auto mb-2" />
                   <div className="font-display font-bold text-xl text-neon-cyan">
-                    ₹{tournament.entryFee}
+                    ₹{tournament.entry_fee || 0}
                   </div>
                   <div className="text-xs text-muted-foreground uppercase">
                     Entry Fee
@@ -136,7 +253,7 @@ export default function TournamentDetail() {
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
                   <Users className="w-5 h-5 text-secondary mx-auto mb-2" />
                   <div className="font-display font-bold text-xl text-foreground">
-                    {spotsLeft}/{tournament.maxPlayers}
+                    {spotsLeft}/{tournament.max_players}
                   </div>
                   <div className="text-xs text-muted-foreground uppercase">
                     Spots Left
@@ -144,18 +261,18 @@ export default function TournamentDetail() {
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
                   <Clock className="w-5 h-5 text-gold mx-auto mb-2" />
-                  <div className="font-display font-bold text-xl text-gold">
-                    15:00
+                  <div className="font-display font-bold text-sm text-gold">
+                    {new Date(tournament.start_time).toLocaleDateString()}
                   </div>
                   <div className="text-xs text-muted-foreground uppercase">
-                    Starts In
+                    Start Date
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Room Details - Only visible after joining */}
-            {isJoined && (
+            {isJoined && tournament.status === "live" && (
               <div className="gaming-card neon-border animate-fade-in">
                 <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
                   <Lock className="w-5 h-5 text-neon-cyan" />
@@ -168,14 +285,12 @@ export default function TournamentDetail() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-display font-bold text-xl text-foreground">
-                        {tournament.roomId}
+                        ROOM123
                       </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() =>
-                          copyToClipboard(tournament.roomId, "Room ID")
-                        }
+                        onClick={() => copyToClipboard("ROOM123", "Room ID")}
                       >
                         {copied === "Room ID" ? (
                           <CheckCircle className="w-5 h-5 text-green-500" />
@@ -191,14 +306,12 @@ export default function TournamentDetail() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-display font-bold text-xl text-foreground">
-                        {tournament.roomPassword}
+                        PASS456
                       </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() =>
-                          copyToClipboard(tournament.roomPassword, "Password")
-                        }
+                        onClick={() => copyToClipboard("PASS456", "Password")}
                       >
                         {copied === "Password" ? (
                           <CheckCircle className="w-5 h-5 text-green-500" />
@@ -219,13 +332,70 @@ export default function TournamentDetail() {
               </div>
             )}
 
+            {/* Admin: Registered Users List */}
+            {isAdmin && (
+              <div className="gaming-card border-2 border-primary/30">
+                <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  Registered Players ({tournament.current_players || 0})
+                  <Badge variant="outline" className="ml-2 border-primary text-primary">
+                    Admin Only
+                  </Badge>
+                </h3>
+                
+                {loadingUsers ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : registeredUsers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No players registered yet
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {registeredUsers.map((regUser, index) => (
+                      <div
+                        key={regUser.user_id}
+                        className="flex items-center justify-between bg-muted/50 rounded-lg p-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                            {index + 1}
+                          </div>
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground text-sm">
+                              {getInitials(regUser.profile?.game_name || regUser.profile?.username)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              {regUser.profile?.game_name || regUser.profile?.username || "Unknown Player"}
+                            </div>
+                            {regUser.profile?.username && regUser.profile?.game_name && (
+                              <div className="text-xs text-muted-foreground">
+                                @{regUser.profile.username}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          <div>Registered</div>
+                          <div>{formatDate(regUser.registered_at)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Rules */}
             <div className="gaming-card">
               <h3 className="font-display font-semibold text-lg text-foreground mb-4">
                 Match Rules
               </h3>
               <ul className="space-y-3">
-                {tournament.rules.map((rule, index) => (
+                {rules.map((rule, index) => (
                   <li key={index} className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-xs font-display text-primary">
@@ -237,33 +407,6 @@ export default function TournamentDetail() {
                 ))}
               </ul>
             </div>
-
-            {/* Registered Players */}
-            <div className="gaming-card">
-              <h3 className="font-display font-semibold text-lg text-foreground mb-4">
-                Registered Players ({tournament.currentPlayers})
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {tournament.registeredPlayers.map((player, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2"
-                  >
-                    <Avatar className="w-6 h-6">
-                      <AvatarFallback className="bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground text-xs">
-                        {player.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm text-foreground">{player.name}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2 text-muted-foreground">
-                  <span className="text-sm">
-                    +{tournament.currentPlayers - tournament.registeredPlayers.length} more
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Sidebar */}
@@ -274,7 +417,7 @@ export default function TournamentDetail() {
                 Prize Distribution
               </h3>
               <div className="space-y-3 mb-6">
-                {tournament.prizeDistribution.map((prize, index) => (
+                {prizeDistribution.map((prize, index) => (
                   <div
                     key={index}
                     className={cn(
@@ -308,28 +451,33 @@ export default function TournamentDetail() {
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground">Spots filled</span>
                   <span className="text-foreground font-semibold">
-                    {tournament.currentPlayers}/{tournament.maxPlayers}
+                    {tournament.current_players || 0}/{tournament.max_players}
                   </span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-fire-orange to-fire-red rounded-full transition-all duration-500"
                     style={{
-                      width: `${(tournament.currentPlayers / tournament.maxPlayers) * 100}%`,
+                      width: `${((tournament.current_players || 0) / tournament.max_players) * 100}%`,
                     }}
                   />
                 </div>
               </div>
 
-              {/* Join Button */}
-              {isJoined ? (
-                <Button variant="neon" className="w-full" disabled>
-                  <CheckCircle className="w-5 h-5" />
-                  Joined
+              {/* Join/Leave Button */}
+              {tournament.status === "completed" ? (
+                <Button variant="outline" className="w-full" disabled>
+                  Tournament Ended
+                </Button>
+              ) : isJoined ? (
+                <Button variant="outline" className="w-full" onClick={handleLeave} disabled={joining}>
+                  {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                  {joining ? "Processing..." : "Joined - Click to Leave"}
                 </Button>
               ) : (
-                <Button variant="fire" className="w-full" onClick={handleJoin}>
-                  Join for ₹{tournament.entryFee}
+                <Button variant="fire" className="w-full" onClick={handleJoin} disabled={joining || spotsLeft <= 0}>
+                  {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {joining ? "Joining..." : spotsLeft <= 0 ? "Tournament Full" : `Join for ₹${tournament.entry_fee || 0}`}
                 </Button>
               )}
 

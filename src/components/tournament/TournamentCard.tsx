@@ -148,7 +148,6 @@ export function TournamentCard({ tournament, featured = false, isRegistered = fa
                 variant={isFull ? "outline" : "fire"}
                 className="w-full"
                 disabled={isFull || tournament.status === "completed"}
-                onClick={onJoin ? handleAction : undefined}
               >
                 {isFull
                   ? "Full"

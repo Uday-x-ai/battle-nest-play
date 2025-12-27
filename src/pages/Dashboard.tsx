@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import {
   XCircle,
   QrCode,
   Copy,
+  RefreshCw,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,13 @@ import { useWithdrawalRequests } from "@/hooks/useWithdrawalRequests";
 import { useDepositRequests } from "@/hooks/useDepositRequests";
 import { supabase } from "@/integrations/supabase/client";
 
+// Generate random transaction reference for UPI
+const generateTransactionRef = () => {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000000);
+  return `${timestamp}${random}`;
+};
+
 export default function Dashboard() {
   const [depositAmount, setDepositAmount] = useState("");
   const [upiDialogOpen, setUpiDialogOpen] = useState(false);
@@ -51,12 +59,61 @@ export default function Dashboard() {
   const [upiId, setUpiId] = useState("");
   const [savingUpi, setSavingUpi] = useState(false);
   const [submittingDeposit, setSubmittingDeposit] = useState(false);
+  const [transactionRef, setTransactionRef] = useState("");
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const { user, profile, loading, refreshProfile } = useAuth();
-  const { transactions } = useWallet();
+  const { transactions, refetch: refetchWallet } = useWallet();
   const { requests: withdrawalRequests, createRequest: createWithdrawalRequest } = useWithdrawalRequests();
   const { requests: depositRequests, createRequest: createDepositRequest } = useDepositRequests();
   const { tournaments, registrations } = useTournaments();
   const navigate = useNavigate();
+
+  // Generate new transaction ref when deposit dialog opens
+  const generateNewRef = useCallback(() => {
+    setTransactionRef(generateTransactionRef());
+  }, []);
+
+  // Verify payment with API
+  const verifyPayment = async () => {
+    if (!transactionRef || !depositAmount) return;
+    
+    setVerifyingPayment(true);
+    try {
+      const response = await fetch(
+        `https://paytm.udayscripts.in/?mid=SzFThC49898719386494&id=${transactionRef}`
+      );
+      const data = await response.json();
+      
+      if (data.STATUS === "TXN_SUCCESS") {
+        const txnAmount = parseFloat(data.TXNAMOUNT);
+        const expectedAmount = parseInt(depositAmount);
+        
+        if (txnAmount >= expectedAmount) {
+          // Payment verified - create deposit request as approved
+          const result = await createDepositRequest(expectedAmount, data.BANKTXNID || transactionRef);
+          if (result.success) {
+            toast.success(`Payment of ₹${txnAmount} verified successfully!`);
+            setDepositDialogOpen(false);
+            setDepositAmount("");
+            setUpiTransactionId("");
+            await refetchWallet();
+            await refreshProfile();
+          }
+        } else {
+          toast.error(`Amount mismatch. Expected ₹${expectedAmount}, received ₹${txnAmount}`);
+        }
+      } else if (data.RESPCODE === "334") {
+        toast.info("Payment not found yet. Please complete the payment and try again.");
+      } else {
+        toast.error(data.RESPMSG || "Payment verification failed");
+      }
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      toast.error("Failed to verify payment. Please try again.");
+    } finally {
+      setVerifyingPayment(false);
+    }
+  };
 
   useEffect(() => {
     if (profile?.upi_id) {
@@ -76,6 +133,7 @@ export default function Dashboard() {
       toast.error("Minimum deposit amount is ₹10");
       return;
     }
+    generateNewRef();
     setDepositDialogOpen(true);
   };
 
@@ -590,27 +648,24 @@ export default function Dashboard() {
               Add Money via UPI
             </DialogTitle>
             <DialogDescription>
-              Scan the QR code or pay to the UPI ID below, then enter the transaction ID.
+              Scan the QR code to pay ₹{depositAmount}, then click "Verify Payment".
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {/* QR Code Section */}
             <div className="flex flex-col items-center p-4 bg-white rounded-lg">
               <QRCodeSVG
-                value={`upi://pay?pa=admin@upi&pn=GameArena&am=${depositAmount}&cu=INR&tn=Deposit`}
+                value={`upi://pay?pa=paytmqr1aictmo962@paytm&pn=Paytm&am=${depositAmount}&tr=${transactionRef}&tn=Deposit`}
                 size={180}
                 level="H"
                 includeMargin
-                imageSettings={{
-                  src: "",
-                  height: 0,
-                  width: 0,
-                  excavate: false,
-                }}
               />
               <div className="mt-3 text-center">
                 <div className="font-display font-bold text-2xl text-black">
                   ₹{depositAmount}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Order ID: {transactionRef}
                 </div>
               </div>
             </div>
@@ -620,13 +675,13 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">Pay to UPI ID</div>
-                  <div className="font-display font-semibold text-primary">admin@upi</div>
+                  <div className="font-display font-semibold text-primary text-sm">paytmqr1aictmo962@paytm</div>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    navigator.clipboard.writeText("admin@upi");
+                    navigator.clipboard.writeText("paytmqr1aictmo962@paytm");
                     toast.success("UPI ID copied!");
                   }}
                 >
@@ -635,29 +690,49 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Transaction ID Input */}
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">UPI Transaction ID</label>
-              <Input
-                placeholder="Enter your 12-digit UPI transaction ID"
-                value={upiTransactionId}
-                onChange={(e) => setUpiTransactionId(e.target.value)}
-                className="bg-muted border-border"
-              />
-              <p className="text-xs text-muted-foreground">
-                Find this in your UPI app under payment details after completing the payment
+            {/* Instructions */}
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-sm text-foreground">
+                <strong>Steps:</strong>
               </p>
+              <ol className="text-xs text-muted-foreground mt-1 space-y-1 list-decimal list-inside">
+                <li>Scan QR code with any UPI app</li>
+                <li>Complete the payment of ₹{depositAmount}</li>
+                <li>Click "Verify Payment" button below</li>
+              </ol>
             </div>
+
+            {/* Generate New QR */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={generateNewRef}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Generate New QR Code
+            </Button>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="ghost" onClick={() => setDepositDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="fire" onClick={handleSubmitDeposit} disabled={submittingDeposit}>
-              {submittingDeposit ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+            <Button 
+              variant="fire" 
+              onClick={verifyPayment} 
+              disabled={verifyingPayment}
+              className="flex-1"
+            >
+              {verifyingPayment ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Verifying...
+                </>
               ) : (
-                "Submit Request"
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Verify Payment
+                </>
               )}
             </Button>
           </DialogFooter>

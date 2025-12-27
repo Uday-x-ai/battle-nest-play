@@ -65,7 +65,7 @@ export default function Dashboard() {
   const { user, profile, loading, refreshProfile } = useAuth();
   const { transactions, refetch: refetchWallet } = useWallet();
   const { requests: withdrawalRequests, createRequest: createWithdrawalRequest } = useWithdrawalRequests();
-  const { requests: depositRequests, createRequest: createDepositRequest } = useDepositRequests();
+  const { requests: depositRequests, createRequest: createDepositRequest, createApprovedDeposit } = useDepositRequests();
   const { tournaments, registrations } = useTournaments();
   const navigate = useNavigate();
 
@@ -102,7 +102,7 @@ export default function Dashboard() {
         
         if (txnAmount >= expectedAmount) {
           // Payment verified - create deposit request as approved
-          const result = await createDepositRequest(expectedAmount, data.BANKTXNID || transactionRef);
+          const result = await createApprovedDeposit(expectedAmount, data.BANKTXNID || transactionRef);
           if (result.success) {
             toast.success(`Payment of ₹${txnAmount} verified successfully!`);
             setDepositDialogOpen(false);

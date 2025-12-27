@@ -49,8 +49,8 @@ export function useDepositRequests() {
       return { success: false };
     }
 
-    if (amount < 10) {
-      toast.error("Minimum deposit is ₹10");
+    if (amount < 1) {
+      toast.error("Minimum deposit is ₹1");
       return { success: false };
     }
 

@@ -82,16 +82,23 @@ export default function Dashboard() {
 
   // Verify payment with API
   const verifyPayment = useCallback(async (isAutoCheck = false): Promise<boolean> => {
-    if (!transactionRef || !depositAmount) return false;
+    if (!transactionRef || !depositAmount) {
+      console.log("Skipping verification - missing transactionRef or depositAmount");
+      return false;
+    }
     
     if (!isAutoCheck) {
       setVerifyingPayment(true);
     }
     
+    console.log(`Verifying payment - transactionRef: ${transactionRef}, isAutoCheck: ${isAutoCheck}`);
+    
     try {
       const { data, error } = await supabase.functions.invoke('verify-payment', {
         body: { transactionRef }
       });
+      
+      console.log("Verification response:", data, error);
       
       if (error) throw error;
       

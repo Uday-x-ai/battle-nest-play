@@ -3,27 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 
-export interface DepositRequest {
+export interface WithdrawalRequest {
   id: string;
   user_id: string;
   amount: number;
+  upi_id: string;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   updated_at: string;
   processed_by: string | null;
   processed_at: string | null;
   notes: string | null;
-  // Joined profile data
   profile?: {
     username: string | null;
     game_name: string | null;
   };
 }
 
-export function useDepositRequests() {
-  const [requests, setRequests] = useState<DepositRequest[]>([]);
+export function useWithdrawalRequests() {
+  const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const fetchUserRequests = async () => {
     if (!user) {
@@ -32,40 +32,68 @@ export function useDepositRequests() {
     }
 
     const { data, error } = await supabase
-      .from("deposit_requests")
+      .from("withdrawal_requests")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setRequests(data as DepositRequest[]);
+      setRequests(data as WithdrawalRequest[]);
     }
     setLoading(false);
   };
 
   const createRequest = async (amount: number) => {
-    if (!user) {
-      toast.error("Please login to create a deposit request");
+    if (!user || !profile) {
+      toast.error("Please login to create a withdrawal request");
       return { success: false };
     }
 
-    if (amount < 10) {
-      toast.error("Minimum deposit is ₹10");
+    if (amount < 100) {
+      toast.error("Minimum withdrawal is ₹100");
       return { success: false };
     }
 
-    const { error } = await supabase.from("deposit_requests").insert({
+    if (!profile.upi_id) {
+      toast.error("Please set your UPI ID first");
+      return { success: false, needsUpi: true };
+    }
+
+    if (profile.wallet_balance < amount) {
+      toast.error("Insufficient balance");
+      return { success: false };
+    }
+
+    // Deduct balance immediately
+    const { error: balanceError } = await supabase
+      .from("profiles")
+      .update({ wallet_balance: profile.wallet_balance - amount })
+      .eq("user_id", user.id);
+
+    if (balanceError) {
+      toast.error("Failed to process request");
+      return { success: false };
+    }
+
+    // Create withdrawal request
+    const { error } = await supabase.from("withdrawal_requests").insert({
       user_id: user.id,
       amount: amount,
+      upi_id: profile.upi_id,
       status: "pending"
     });
 
     if (error) {
-      toast.error("Failed to create deposit request");
+      // Refund the balance if request creation fails
+      await supabase
+        .from("profiles")
+        .update({ wallet_balance: profile.wallet_balance })
+        .eq("user_id", user.id);
+      toast.error("Failed to create withdrawal request");
       return { success: false };
     }
 
-    toast.success(`Deposit request for ₹${amount} submitted!`);
+    toast.success(`Withdrawal request for ₹${amount} submitted!`);
     await fetchUserRequests();
     return { success: true };
   };
@@ -75,30 +103,29 @@ export function useDepositRequests() {
 
     if (!user) return;
 
-    // Real-time subscription for deposit request updates
     const channel = supabase
-      .channel(`deposit-requests-${user.id}`)
+      .channel(`withdrawal-requests-${user.id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'deposit_requests',
+          table: 'withdrawal_requests',
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Deposit request update:', payload);
+          console.log('Withdrawal request update:', payload);
           if (payload.eventType === 'INSERT') {
-            setRequests(prev => [payload.new as DepositRequest, ...prev]);
+            setRequests(prev => [payload.new as WithdrawalRequest, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             setRequests(prev => prev.map(r => 
-              r.id === (payload.new as DepositRequest).id ? payload.new as DepositRequest : r
+              r.id === (payload.new as WithdrawalRequest).id ? payload.new as WithdrawalRequest : r
             ));
-            const updated = payload.new as DepositRequest;
+            const updated = payload.new as WithdrawalRequest;
             if (updated.status === 'approved') {
-              toast.success(`Your deposit of ₹${updated.amount} has been approved!`);
+              toast.success(`Your withdrawal of ₹${updated.amount} has been processed!`);
             } else if (updated.status === 'rejected') {
-              toast.error(`Your deposit request was rejected.`);
+              toast.error(`Your withdrawal request was rejected. Amount refunded.`);
             }
           }
         }
@@ -118,9 +145,9 @@ export function useDepositRequests() {
   };
 }
 
-// Admin hook for managing all deposit requests
-export function useAdminDepositRequests() {
-  const [requests, setRequests] = useState<DepositRequest[]>([]);
+// Admin hook for managing all withdrawal requests
+export function useAdminWithdrawalRequests() {
+  const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, isAdmin } = useAuth();
 
@@ -130,14 +157,12 @@ export function useAdminDepositRequests() {
       return;
     }
 
-    // Fetch deposit requests
     const { data: requestsData } = await supabase
-      .from("deposit_requests")
+      .from("withdrawal_requests")
       .select("*")
       .order("created_at", { ascending: false });
     
     if (requestsData && requestsData.length > 0) {
-      // Fetch profiles for all users
       const userIds = [...new Set(requestsData.map(r => r.user_id))];
       const { data: profiles } = await supabase
         .from("profiles")
@@ -151,7 +176,7 @@ export function useAdminDepositRequests() {
         profile: profileMap.get(r.user_id) || null
       }));
       
-      setRequests(enrichedData as DepositRequest[]);
+      setRequests(enrichedData as WithdrawalRequest[]);
     } else {
       setRequests([]);
     }
@@ -164,10 +189,9 @@ export function useAdminDepositRequests() {
       return { success: false };
     }
 
-    // Start a transaction-like operation
-    // 1. Update request status
+    // Update request status
     const { error: requestError } = await supabase
-      .from("deposit_requests")
+      .from("withdrawal_requests")
       .update({
         status: "approved",
         processed_by: user.id,
@@ -180,53 +204,28 @@ export function useAdminDepositRequests() {
       return { success: false };
     }
 
-    // 2. Get current wallet balance
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("wallet_balance")
-      .eq("user_id", userId)
-      .single();
+    // Create transaction record
+    await supabase.from("wallet_transactions").insert({
+      user_id: userId,
+      type: "withdrawal",
+      amount: -amount,
+      description: "Withdrawal approved"
+    });
 
-    const currentBalance = profileData?.wallet_balance || 0;
-
-    // 3. Update wallet balance
-    const { error: walletError } = await supabase
-      .from("profiles")
-      .update({ wallet_balance: currentBalance + amount })
-      .eq("user_id", userId);
-
-    if (walletError) {
-      toast.error("Failed to update wallet balance");
-      return { success: false };
-    }
-
-    // 4. Create transaction record
-    const { error: txError } = await supabase
-      .from("wallet_transactions")
-      .insert({
-        user_id: userId,
-        type: "deposit",
-        amount: amount,
-        description: "Deposit approved"
-      });
-
-    if (txError) {
-      console.error("Failed to create transaction record:", txError);
-    }
-
-    toast.success("Deposit request approved!");
+    toast.success("Withdrawal request approved!");
     await fetchAllRequests();
     return { success: true };
   };
 
-  const rejectRequest = async (requestId: string, notes?: string) => {
+  const rejectRequest = async (requestId: string, userId: string, amount: number, notes?: string) => {
     if (!user || !isAdmin) {
       toast.error("Admin access required");
       return { success: false };
     }
 
+    // Update request status
     const { error } = await supabase
-      .from("deposit_requests")
+      .from("withdrawal_requests")
       .update({
         status: "rejected",
         processed_by: user.id,
@@ -240,7 +239,29 @@ export function useAdminDepositRequests() {
       return { success: false };
     }
 
-    toast.success("Deposit request rejected");
+    // Refund the balance
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("wallet_balance")
+      .eq("user_id", userId)
+      .single();
+
+    const currentBalance = profileData?.wallet_balance || 0;
+
+    await supabase
+      .from("profiles")
+      .update({ wallet_balance: currentBalance + amount })
+      .eq("user_id", userId);
+
+    // Create refund transaction
+    await supabase.from("wallet_transactions").insert({
+      user_id: userId,
+      type: "refund",
+      amount: amount,
+      description: "Withdrawal rejected - refunded"
+    });
+
+    toast.success("Withdrawal request rejected and refunded");
     await fetchAllRequests();
     return { success: true };
   };
@@ -261,15 +282,14 @@ export function useAdminDepositRequests() {
 
     if (!user || !isAdmin) return;
 
-    // Real-time subscription for all deposit requests
     const channel = supabase
-      .channel('admin-deposit-requests')
+      .channel('admin-withdrawal-requests')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'deposit_requests'
+          table: 'withdrawal_requests'
         },
         () => {
           fetchAllRequests();

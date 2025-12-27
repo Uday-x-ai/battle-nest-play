@@ -16,21 +16,21 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Wallet,
   IndianRupee,
   Loader2,
   User,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { DepositRequest } from "@/hooks/useDepositRequests";
+import { WithdrawalRequest } from "@/hooks/useWithdrawalRequests";
 
-interface DepositRequestsManagementProps {
-  requests: DepositRequest[];
+interface WithdrawalRequestsManagementProps {
+  requests: WithdrawalRequest[];
   loading: boolean;
   onRefresh: () => void;
   onApprove: (requestId: string, userId: string, amount: number) => Promise<{ success: boolean }>;
-  onReject: (requestId: string, notes?: string) => Promise<{ success: boolean }>;
+  onReject: (requestId: string, userId: string, amount: number, notes?: string) => Promise<{ success: boolean }>;
   stats: {
     pending: number;
     approved: number;
@@ -40,18 +40,18 @@ interface DepositRequestsManagementProps {
   };
 }
 
-export function DepositRequestsManagement({
+export function WithdrawalRequestsManagement({
   requests,
   loading,
   onRefresh,
   onApprove,
   onReject,
   stats,
-}: DepositRequestsManagementProps) {
+}: WithdrawalRequestsManagementProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectingRequest, setRejectingRequest] = useState<DepositRequest | null>(null);
+  const [rejectingRequest, setRejectingRequest] = useState<WithdrawalRequest | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -59,20 +59,20 @@ export function DepositRequestsManagement({
     const matchesSearch =
       r.profile?.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.profile?.game_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+      r.upi_id.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || r.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
 
-  const handleApprove = async (request: DepositRequest) => {
+  const handleApprove = async (request: WithdrawalRequest) => {
     setProcessing(request.id);
     await onApprove(request.id, request.user_id, request.amount);
     setProcessing(null);
   };
 
-  const handleRejectClick = (request: DepositRequest) => {
+  const handleRejectClick = (request: WithdrawalRequest) => {
     setRejectingRequest(request);
     setRejectNotes("");
     setRejectDialogOpen(true);
@@ -81,7 +81,7 @@ export function DepositRequestsManagement({
   const handleRejectConfirm = async () => {
     if (!rejectingRequest) return;
     setProcessing(rejectingRequest.id);
-    await onReject(rejectingRequest.id, rejectNotes);
+    await onReject(rejectingRequest.id, rejectingRequest.user_id, rejectingRequest.amount, rejectNotes);
     setProcessing(null);
     setRejectDialogOpen(false);
     setRejectingRequest(null);
@@ -98,7 +98,7 @@ export function DepositRequestsManagement({
         );
       case "approved":
         return (
-          <Badge variant="success">
+          <Badge className="bg-green-500">
             <CheckCircle className="w-3 h-3 mr-1" />
             Approved
           </Badge>
@@ -119,13 +119,13 @@ export function DepositRequestsManagement({
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="font-display font-bold text-2xl text-foreground">
-          Deposit Requests
+          Withdrawal Requests
         </h1>
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by username..."
+              placeholder="Search by username or UPI..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-muted border-border w-48 md:w-64"
@@ -207,6 +207,9 @@ export function DepositRequestsManagement({
                     Amount
                   </th>
                   <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                    UPI ID
+                  </th>
+                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">
                     Status
                   </th>
                   <th className="text-center py-3 px-4 text-sm text-muted-foreground">
@@ -236,9 +239,17 @@ export function DepositRequestsManagement({
                       </div>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className="font-display font-bold gradient-text">
+                      <span className="font-display font-bold text-destructive">
                         ₹{Number(request.amount).toLocaleString()}
                       </span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <CreditCard className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">
+                          {request.upi_id}
+                        </span>
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-center">
                       {getStatusBadge(request.status)}
@@ -288,10 +299,10 @@ export function DepositRequestsManagement({
                 ))}
                 {filteredRequests.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                    <td colSpan={6} className="py-12 text-center text-muted-foreground">
                       {searchQuery || statusFilter !== "all"
                         ? "No requests found matching your filters."
-                        : "No deposit requests yet."}
+                        : "No withdrawal requests yet."}
                     </td>
                   </tr>
                 )}
@@ -305,10 +316,9 @@ export function DepositRequestsManagement({
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Reject Deposit Request</DialogTitle>
+            <DialogTitle>Reject Withdrawal Request</DialogTitle>
             <DialogDescription>
-              Are you sure you want to reject this deposit request of ₹
-              {rejectingRequest?.amount}? You can add a note explaining the reason.
+              Rejecting this request will refund ₹{rejectingRequest?.amount} to the user's wallet.
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -329,7 +339,7 @@ export function DepositRequestsManagement({
               {processing === rejectingRequest?.id ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                "Reject"
+                "Reject & Refund"
               )}
             </Button>
           </DialogFooter>

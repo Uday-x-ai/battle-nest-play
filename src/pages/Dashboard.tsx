@@ -35,7 +35,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useTournaments } from "@/hooks/useTournaments";
-import { useDepositRequests } from "@/hooks/useDepositRequests";
+import { useWithdrawalRequests } from "@/hooks/useWithdrawalRequests";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
@@ -44,8 +44,8 @@ export default function Dashboard() {
   const [upiId, setUpiId] = useState("");
   const [savingUpi, setSavingUpi] = useState(false);
   const { user, profile, loading, refreshProfile } = useAuth();
-  const { transactions, withdraw } = useWallet();
-  const { requests: depositRequests, createRequest } = useDepositRequests();
+  const { transactions, deposit } = useWallet();
+  const { requests: withdrawalRequests, createRequest: createWithdrawalRequest } = useWithdrawalRequests();
   const { tournaments, registrations } = useTournaments();
   const navigate = useNavigate();
 
@@ -67,7 +67,7 @@ export default function Dashboard() {
       toast.error("Minimum deposit amount is ₹10");
       return;
     }
-    await createRequest(amount);
+    await deposit(amount);
     setDepositAmount("");
   };
 
@@ -82,8 +82,10 @@ export default function Dashboard() {
       setUpiDialogOpen(true);
       return;
     }
-    await withdraw(amount);
-    setDepositAmount("");
+    const result = await createWithdrawalRequest(amount);
+    if (result.success) {
+      setDepositAmount("");
+    }
   };
 
   const handleSaveUpi = async () => {
@@ -127,7 +129,7 @@ export default function Dashboard() {
         );
       case "approved":
         return (
-          <Badge variant="default" className="bg-green-500">
+          <Badge className="bg-green-500">
             <CheckCircle className="w-3 h-3 mr-1" />
             Approved
           </Badge>
@@ -255,31 +257,31 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Deposit Requests */}
-            {depositRequests.length > 0 && (
+            {/* Withdrawal Requests */}
+            {withdrawalRequests.length > 0 && (
               <div className="gaming-card">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-display font-semibold text-lg text-foreground flex items-center gap-2">
                     <CreditCard className="w-5 h-5" />
-                    Deposit Requests
+                    Withdrawal Requests
                   </h3>
                 </div>
                 <div className="space-y-3">
-                  {depositRequests.slice(0, 5).map((req) => (
+                  {withdrawalRequests.slice(0, 5).map((req) => (
                     <div
                       key={req.id}
                       className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                          <Plus className="w-5 h-5 text-primary" />
+                        <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                          <ArrowUpRight className="w-5 h-5 text-destructive" />
                         </div>
                         <div>
                           <div className="font-semibold text-foreground">
                             ₹{Number(req.amount).toLocaleString()}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(req.created_at).toLocaleDateString()}
+                            {new Date(req.created_at).toLocaleDateString()} • {req.upi_id}
                           </div>
                         </div>
                       </div>
@@ -459,6 +461,9 @@ export default function Dashboard() {
                   Withdraw
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Withdrawals require admin approval
+              </p>
             </div>
           </div>
         </div>

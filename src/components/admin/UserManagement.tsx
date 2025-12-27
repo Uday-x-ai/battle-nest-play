@@ -136,30 +136,85 @@ export function UserManagement({
     }
   };
 
+  const UserActionMenu = ({ user }: { user: AdminUser }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel>Manage Roles</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {!user.roles.includes("admin") && (
+          <DropdownMenuItem onClick={() => onAddRole(user.user_id, "admin")}>
+            <Crown className="w-4 h-4 mr-2 text-fire-orange" />
+            Make Admin
+          </DropdownMenuItem>
+        )}
+        {user.roles.includes("admin") && (
+          <DropdownMenuItem
+            onClick={() => onRemoveRole(user.user_id, "admin")}
+            className="text-destructive"
+          >
+            <Crown className="w-4 h-4 mr-2" />
+            Remove Admin
+          </DropdownMenuItem>
+        )}
+        {!user.roles.includes("moderator") && (
+          <DropdownMenuItem onClick={() => onAddRole(user.user_id, "moderator")}>
+            <ShieldCheck className="w-4 h-4 mr-2 text-neon-cyan" />
+            Make Moderator
+          </DropdownMenuItem>
+        )}
+        {user.roles.includes("moderator") && (
+          <DropdownMenuItem
+            onClick={() => onRemoveRole(user.user_id, "moderator")}
+            className="text-destructive"
+          >
+            <ShieldCheck className="w-4 h-4 mr-2" />
+            Remove Moderator
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Wallet</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => openWalletDialog(user, "deposit")}>
+          <Plus className="w-4 h-4 mr-2 text-green-500" />
+          Add Funds
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openWalletDialog(user, "withdraw")}>
+          <Minus className="w-4 h-4 mr-2 text-destructive" />
+          Withdraw Funds
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="font-display font-bold text-2xl text-foreground">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="font-display font-bold text-xl sm:text-2xl text-foreground">
           User Management
         </h1>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search users..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-muted border-border w-48 md:w-64"
+              className="pl-9 bg-muted border-border w-full sm:w-48 md:w-64"
             />
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-32 bg-muted border-border">
+            <SelectTrigger className="w-28 sm:w-32 bg-muted border-border">
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="all">All</SelectItem>
               <SelectItem value="admin">Admins</SelectItem>
-              <SelectItem value="moderator">Moderators</SelectItem>
+              <SelectItem value="moderator">Mods</SelectItem>
               <SelectItem value="user">Users</SelectItem>
             </SelectContent>
           </Select>
@@ -175,39 +230,39 @@ export function UserManagement({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="gaming-card">
-          <Users className="w-6 h-6 text-primary mb-2" />
-          <div className="font-display font-bold text-2xl text-foreground">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="gaming-card p-3 sm:p-4">
+          <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary mb-1 sm:mb-2" />
+          <div className="font-display font-bold text-xl sm:text-2xl text-foreground">
             {stats.totalUsers}
           </div>
-          <div className="text-sm text-muted-foreground">Total Users</div>
+          <div className="text-xs sm:text-sm text-muted-foreground">Total Users</div>
         </div>
-        <div className="gaming-card">
-          <Crown className="w-6 h-6 text-fire-orange mb-2" />
-          <div className="font-display font-bold text-2xl text-fire-orange">
+        <div className="gaming-card p-3 sm:p-4">
+          <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-fire-orange mb-1 sm:mb-2" />
+          <div className="font-display font-bold text-xl sm:text-2xl text-fire-orange">
             {stats.admins}
           </div>
-          <div className="text-sm text-muted-foreground">Admins</div>
+          <div className="text-xs sm:text-sm text-muted-foreground">Admins</div>
         </div>
-        <div className="gaming-card">
-          <ShieldCheck className="w-6 h-6 text-neon-cyan mb-2" />
-          <div className="font-display font-bold text-2xl text-neon-cyan">
+        <div className="gaming-card p-3 sm:p-4">
+          <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-neon-cyan mb-1 sm:mb-2" />
+          <div className="font-display font-bold text-xl sm:text-2xl text-neon-cyan">
             {stats.moderators}
           </div>
-          <div className="text-sm text-muted-foreground">Moderators</div>
+          <div className="text-xs sm:text-sm text-muted-foreground">Moderators</div>
         </div>
-        <div className="gaming-card">
-          <Wallet className="w-6 h-6 text-green-500 mb-2" />
-          <div className="font-display font-bold text-2xl text-green-500">
+        <div className="gaming-card p-3 sm:p-4">
+          <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 mb-1 sm:mb-2" />
+          <div className="font-display font-bold text-xl sm:text-2xl text-green-500">
             ₹{stats.totalWalletBalance.toLocaleString()}
           </div>
-          <div className="text-sm text-muted-foreground">Total Balance</div>
+          <div className="text-xs sm:text-sm text-muted-foreground">Total Balance</div>
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="gaming-card">
+      {/* Users - Desktop Table */}
+      <div className="gaming-card hidden md:block">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -217,24 +272,12 @@ export function UserManagement({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm text-muted-foreground">
-                    User
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                    Roles
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                    Wallet
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                    Stats
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                    Joined
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm text-muted-foreground">
-                    Actions
-                  </th>
+                  <th className="text-left py-3 px-4 text-sm text-muted-foreground">User</th>
+                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">Roles</th>
+                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">Wallet</th>
+                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">Stats</th>
+                  <th className="text-center py-3 px-4 text-sm text-muted-foreground">Joined</th>
+                  <th className="text-right py-3 px-4 text-sm text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -253,9 +296,7 @@ export function UserManagement({
                             {user.game_name || user.username || "Unknown"}
                           </div>
                           {user.telegram_id && (
-                            <div className="text-xs text-muted-foreground">
-                              @{user.telegram_id}
-                            </div>
+                            <div className="text-xs text-muted-foreground">@{user.telegram_id}</div>
                           )}
                         </div>
                       </div>
@@ -263,11 +304,7 @@ export function UserManagement({
                     <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
                         {user.roles.map((role) => (
-                          <Badge
-                            key={role}
-                            variant={getRoleBadgeVariant(role) as any}
-                            className="gap-1"
-                          >
+                          <Badge key={role} variant={getRoleBadgeVariant(role) as any} className="gap-1">
                             {getRoleIcon(role)}
                             {role}
                           </Badge>
@@ -281,91 +318,91 @@ export function UserManagement({
                     </td>
                     <td className="py-4 px-4 text-center text-sm text-muted-foreground">
                       <div>{user.total_wins || 0} wins</div>
-                      <div className="text-xs">
-                        ₹{(user.total_earnings || 0).toLocaleString()} earned
-                      </div>
+                      <div className="text-xs">₹{(user.total_earnings || 0).toLocaleString()} earned</div>
                     </td>
                     <td className="py-4 px-4 text-center text-sm text-muted-foreground">
                       {format(new Date(user.created_at), "MMM d, yyyy")}
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuLabel>Manage Roles</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {!user.roles.includes("admin") && (
-                            <DropdownMenuItem
-                              onClick={() => onAddRole(user.user_id, "admin")}
-                            >
-                              <Crown className="w-4 h-4 mr-2 text-fire-orange" />
-                              Make Admin
-                            </DropdownMenuItem>
-                          )}
-                          {user.roles.includes("admin") && (
-                            <DropdownMenuItem
-                              onClick={() => onRemoveRole(user.user_id, "admin")}
-                              className="text-destructive"
-                            >
-                              <Crown className="w-4 h-4 mr-2" />
-                              Remove Admin
-                            </DropdownMenuItem>
-                          )}
-                          {!user.roles.includes("moderator") && (
-                            <DropdownMenuItem
-                              onClick={() => onAddRole(user.user_id, "moderator")}
-                            >
-                              <ShieldCheck className="w-4 h-4 mr-2 text-neon-cyan" />
-                              Make Moderator
-                            </DropdownMenuItem>
-                          )}
-                          {user.roles.includes("moderator") && (
-                            <DropdownMenuItem
-                              onClick={() => onRemoveRole(user.user_id, "moderator")}
-                              className="text-destructive"
-                            >
-                              <ShieldCheck className="w-4 h-4 mr-2" />
-                              Remove Moderator
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel>Wallet</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => openWalletDialog(user, "deposit")}
-                          >
-                            <Plus className="w-4 h-4 mr-2 text-green-500" />
-                            Add Funds
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openWalletDialog(user, "withdraw")}
-                          >
-                            <Minus className="w-4 h-4 mr-2 text-destructive" />
-                            Withdraw Funds
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <UserActionMenu user={user} />
                     </td>
                   </tr>
                 ))}
                 {filteredUsers.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="py-12 text-center text-muted-foreground"
-                    >
-                      {searchQuery
-                        ? "No users found matching your search."
-                        : "No users yet."}
+                    <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                      {searchQuery ? "No users found matching your search." : "No users yet."}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* Users - Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="gaming-card flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="gaming-card text-center py-12 text-muted-foreground">
+            {searchQuery ? "No users found matching your search." : "No users yet."}
+          </div>
+        ) : (
+          filteredUsers.map((user) => (
+            <div key={user.id} className="gaming-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="w-12 h-12 shrink-0">
+                    <AvatarImage src={user.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary/20 text-primary">
+                      {(user.game_name || user.username || "U")[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-foreground truncate">
+                      {user.game_name || user.username || "Unknown"}
+                    </div>
+                    {user.telegram_id && (
+                      <div className="text-xs text-muted-foreground truncate">@{user.telegram_id}</div>
+                    )}
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {user.roles.map((role) => (
+                        <Badge key={role} variant={getRoleBadgeVariant(role) as any} className="gap-1 text-xs">
+                          {getRoleIcon(role)}
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <UserActionMenu user={user} />
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border/50">
+                <div className="text-center">
+                  <div className="font-display font-semibold text-green-500">
+                    ₹{(user.wallet_balance || 0).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Wallet</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-display font-semibold text-foreground">
+                    {user.total_wins || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Wins</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-display font-semibold text-foreground text-sm">
+                    {format(new Date(user.created_at), "MMM d")}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Joined</div>
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </div>
 

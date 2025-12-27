@@ -89,10 +89,11 @@ export default function Dashboard() {
     }
     
     try {
-      const response = await fetch(
-        `https://paytm.udayscripts.in/?mid=SzFThC49898719386494&id=${transactionRef}`
-      );
-      const data = await response.json();
+      const { data, error } = await supabase.functions.invoke('verify-payment', {
+        body: { transactionRef }
+      });
+      
+      if (error) throw error;
       
       if (data.STATUS === "TXN_SUCCESS") {
         const txnAmount = parseFloat(data.TXNAMOUNT);

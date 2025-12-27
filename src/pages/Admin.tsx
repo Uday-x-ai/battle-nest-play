@@ -392,150 +392,238 @@ export default function Admin() {
 
           {/* Tournaments */}
           {activeTab === "tournaments" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <h1 className="font-display font-bold text-2xl text-foreground">
+            <div className="space-y-4 md:space-y-6">
+              {/* Header - Mobile Responsive */}
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h1 className="font-display font-bold text-xl md:text-2xl text-foreground">
                   Tournaments
                 </h1>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <div className="relative flex-1 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       placeholder="Search tournaments..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 bg-muted border-border w-48 md:w-64"
+                      className="pl-9 bg-muted border-border w-full sm:w-48 md:w-64"
                     />
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={fetchTournaments}
-                    disabled={tournamentsLoading}
-                  >
-                    <RefreshCw
-                      className={cn("w-4 h-4", tournamentsLoading && "animate-spin")}
-                    />
-                  </Button>
-                  <Button
-                    variant="fire"
-                    className="gap-2"
-                    onClick={handleCreateTournament}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create Tournament
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={fetchTournaments}
+                      disabled={tournamentsLoading}
+                    >
+                      <RefreshCw
+                        className={cn("w-4 h-4", tournamentsLoading && "animate-spin")}
+                      />
+                    </Button>
+                    <Button
+                      variant="fire"
+                      className="gap-2 flex-1 sm:flex-none"
+                      onClick={handleCreateTournament}
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden sm:inline">Create Tournament</span>
+                      <span className="sm:hidden">Create</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
 
-              <div className="gaming-card">
-                {tournamentsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              {tournamentsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {filteredTournaments.map((t) => (
+                      <div key={t.id} className="gaming-card space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-foreground truncate">
+                              {t.title}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Entry: ₹{t.entry_fee}
+                            </div>
+                          </div>
+                          <Badge variant={getStatusBadgeVariant(t.status)} className="shrink-0">
+                            {t.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Type: </span>
+                            <Badge variant="outline" className="capitalize text-xs">
+                              {t.type}
+                            </Badge>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Players: </span>
+                            <span className="text-foreground">{t.current_players}/{t.max_players}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Prize: </span>
+                            <span className="font-display gradient-text">₹{t.prize_pool?.toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Start: </span>
+                            <span className="text-foreground text-xs">
+                              {format(new Date(t.start_time), "MMM d, h:mm a")}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-1 pt-2 border-t border-border/50">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => navigate(`/tournaments/${t.id}`)}
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => handleEditTournament(t)}
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 text-destructive hover:text-destructive"
+                            onClick={() => setDeletingTournament(t)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredTournaments.length === 0 && (
+                      <div className="gaming-card py-8 text-center text-muted-foreground">
+                        {searchQuery
+                          ? "No tournaments found matching your search."
+                          : "No tournaments yet. Create your first tournament!"}
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left py-3 px-4 text-sm text-muted-foreground">
-                            Tournament
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                            Type
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                            Players
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                            Prize
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                            Start Time
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm text-muted-foreground">
-                            Status
-                          </th>
-                          <th className="text-right py-3 px-4 text-sm text-muted-foreground">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredTournaments.map((t) => (
-                          <tr key={t.id} className="border-b border-border/50">
-                            <td className="py-4 px-4">
-                              <div className="font-semibold text-foreground">
-                                {t.title}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Entry: ₹{t.entry_fee}
-                              </div>
-                            </td>
-                            <td className="py-4 px-4 text-center">
-                              <Badge variant="outline" className="capitalize">
-                                {t.type}
-                              </Badge>
-                            </td>
-                            <td className="py-4 px-4 text-center text-muted-foreground">
-                              {t.current_players}/{t.max_players}
-                            </td>
-                            <td className="py-4 px-4 text-center font-display gradient-text">
-                              ₹{t.prize_pool?.toLocaleString()}
-                            </td>
-                            <td className="py-4 px-4 text-center text-sm text-muted-foreground">
-                              {format(new Date(t.start_time), "MMM d, yyyy h:mm a")}
-                            </td>
-                            <td className="py-4 px-4 text-center">
-                              <Badge variant={getStatusBadgeVariant(t.status)}>
-                                {t.status}
-                              </Badge>
-                            </td>
-                            <td className="py-4 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => navigate(`/tournaments/${t.id}`)}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleEditTournament(t)}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => setDeletingTournament(t)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
+
+                  {/* Desktop Table View */}
+                  <div className="gaming-card hidden md:block">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-3 px-4 text-sm text-muted-foreground">
+                              Tournament
+                            </th>
+                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                              Type
+                            </th>
+                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                              Players
+                            </th>
+                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                              Prize
+                            </th>
+                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                              Start Time
+                            </th>
+                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                              Status
+                            </th>
+                            <th className="text-right py-3 px-4 text-sm text-muted-foreground">
+                              Actions
+                            </th>
                           </tr>
-                        ))}
-                        {filteredTournaments.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan={7}
-                              className="py-12 text-center text-muted-foreground"
-                            >
-                              {searchQuery
-                                ? "No tournaments found matching your search."
-                                : "No tournaments yet. Create your first tournament!"}
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {filteredTournaments.map((t) => (
+                            <tr key={t.id} className="border-b border-border/50">
+                              <td className="py-4 px-4">
+                                <div className="font-semibold text-foreground">
+                                  {t.title}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  Entry: ₹{t.entry_fee}
+                                </div>
+                              </td>
+                              <td className="py-4 px-4 text-center">
+                                <Badge variant="outline" className="capitalize">
+                                  {t.type}
+                                </Badge>
+                              </td>
+                              <td className="py-4 px-4 text-center text-muted-foreground">
+                                {t.current_players}/{t.max_players}
+                              </td>
+                              <td className="py-4 px-4 text-center font-display gradient-text">
+                                ₹{t.prize_pool?.toLocaleString()}
+                              </td>
+                              <td className="py-4 px-4 text-center text-sm text-muted-foreground">
+                                {format(new Date(t.start_time), "MMM d, yyyy h:mm a")}
+                              </td>
+                              <td className="py-4 px-4 text-center">
+                                <Badge variant={getStatusBadgeVariant(t.status)}>
+                                  {t.status}
+                                </Badge>
+                              </td>
+                              <td className="py-4 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => navigate(`/tournaments/${t.id}`)}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditTournament(t)}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setDeletingTournament(t)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {filteredTournaments.length === 0 && (
+                            <tr>
+                              <td
+                                colSpan={7}
+                                className="py-12 text-center text-muted-foreground"
+                              >
+                                {searchQuery
+                                  ? "No tournaments found matching your search."
+                                  : "No tournaments yet. Create your first tournament!"}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
 

@@ -23,6 +23,7 @@ export interface TournamentRegistration {
   tournament_id: string;
   user_id: string;
   registered_at: string;
+  slot_number: number | null;
 }
 
 export function useTournaments() {
@@ -99,7 +100,18 @@ export function useTournaments() {
     return registrations.some(r => r.tournament_id === tournamentId);
   };
 
-  const joinTournament = async (tournamentId: string) => {
+  const getTakenSlots = async (tournamentId: string): Promise<number[]> => {
+    const { data, error } = await supabase
+      .from("tournament_registrations")
+      .select("slot_number")
+      .eq("tournament_id", tournamentId)
+      .not("slot_number", "is", null);
+
+    if (error || !data) return [];
+    return data.map(r => r.slot_number as number);
+  };
+
+  const joinTournament = async (tournamentId: string, slotNumber?: number) => {
     if (!user) {
       toast.error("Please login to join a tournament");
       return { success: false };
@@ -126,6 +138,15 @@ export function useTournaments() {
       return { success: false };
     }
 
+    // Verify slot is still available
+    if (slotNumber !== undefined) {
+      const takenSlots = await getTakenSlots(tournamentId);
+      if (takenSlots.includes(slotNumber)) {
+        toast.error("This slot has already been taken. Please choose another slot.");
+        return { success: false };
+      }
+    }
+
     // Deduct entry fee from wallet
     const { error: walletError } = await supabase
       .from("profiles")
@@ -146,15 +167,21 @@ export function useTournaments() {
       tournament_id: tournamentId
     });
 
-    // Register for tournament
+    // Register for tournament with slot
     const { error } = await supabase
       .from("tournament_registrations")
       .insert({
         tournament_id: tournamentId,
-        user_id: user.id
+        user_id: user.id,
+        slot_number: slotNumber ?? null
       });
 
     if (error) {
+      // Refund if registration fails
+      await supabase
+        .from("profiles")
+        .update({ wallet_balance: (profile?.wallet_balance || 0) })
+        .eq("user_id", user.id);
       toast.error("Failed to join tournament");
       return { success: false };
     }
@@ -217,6 +244,7 @@ export function useTournaments() {
     isRegistered,
     joinTournament,
     leaveTournament,
+    getTakenSlots,
     refetch: fetchTournaments
   };
 }

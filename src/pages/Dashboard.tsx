@@ -792,15 +792,6 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Instructions */}
-            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Scan QR code with any UPI app</li>
-                <li>Complete the payment of ₹{depositAmount}</li>
-                <li>Payment will be verified automatically</li>
-              </ol>
-            </div>
-
             {/* Generate New QR */}
             <Button
               variant="outline"

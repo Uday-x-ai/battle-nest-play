@@ -1,56 +1,75 @@
-import { TournamentCard, Tournament } from "@/components/tournament/TournamentCard";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight, Flame } from "lucide-react";
+import { ArrowRight, Flame, Loader2, Users, Trophy, Clock, Zap } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow, format, isPast } from "date-fns";
 
-const liveTournaments: Tournament[] = [
-  {
-    id: "1",
-    title: "Fire Storm Championship",
-    type: "squad",
-    entryFee: 50,
-    prizePool: 5000,
-    maxPlayers: 100,
-    currentPlayers: 87,
-    startTime: "Starting in 15 min",
-    status: "live",
-  },
-  {
-    id: "2",
-    title: "Solo Showdown",
-    type: "solo",
-    entryFee: 25,
-    prizePool: 2000,
-    maxPlayers: 50,
-    currentPlayers: 45,
-    startTime: "Starting in 30 min",
-    status: "upcoming",
-  },
-  {
-    id: "3",
-    title: "Duo Domination",
-    type: "duo",
-    entryFee: 40,
-    prizePool: 3500,
-    maxPlayers: 60,
-    currentPlayers: 42,
-    startTime: "Starting in 1 hour",
-    status: "upcoming",
-  },
-  {
-    id: "4",
-    title: "Night Raid Battle",
-    type: "squad",
-    entryFee: 100,
-    prizePool: 10000,
-    maxPlayers: 100,
-    currentPlayers: 78,
-    startTime: "Today, 9:00 PM",
-    status: "upcoming",
-  },
-];
+interface DbTournament {
+  id: string;
+  title: string;
+  type: string;
+  entry_fee: number | null;
+  prize_pool: number | null;
+  max_players: number;
+  current_players: number | null;
+  start_time: string;
+  status: string | null;
+  image_url: string | null;
+}
 
 export function LiveTournaments() {
+  const [tournaments, setTournaments] = useState<DbTournament[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      const { data, error } = await supabase
+        .from("tournaments")
+        .select("*")
+        .in("status", ["live", "upcoming"])
+        .order("start_time", { ascending: true })
+        .limit(4);
+
+      if (!error && data) {
+        setTournaments(data);
+      }
+      setLoading(false);
+    };
+
+    fetchTournaments();
+  }, []);
+
+  const getStartTimeDisplay = (startTime: string) => {
+    const date = new Date(startTime);
+    if (isPast(date)) {
+      return "Started";
+    }
+    const distance = formatDistanceToNow(date, { addSuffix: false });
+    return `Starting in ${distance}`;
+  };
+
+  const getStatusBadge = (status: string | null) => {
+    if (status === "live") {
+      return (
+        <Badge className="bg-green-500/20 text-green-400 border-green-500/50 gap-1.5">
+          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+          LIVE
+        </Badge>
+      );
+    }
+    if (status === "upcoming") {
+      return (
+        <Badge className="bg-primary/20 text-primary border-primary/50">
+          UPCOMING
+        </Badge>
+      );
+    }
+    return <Badge variant="secondary">{status?.toUpperCase()}</Badge>;
+  };
+
   return (
     <section className="py-16 md:py-24">
       <div className="container mx-auto px-4">
@@ -77,16 +96,141 @@ export function LiveTournaments() {
           </Link>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && tournaments.length === 0 && (
+          <div className="gaming-card text-center py-12">
+            <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-display font-semibold text-lg text-foreground mb-2">
+              No tournaments available
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              Check back soon for upcoming tournaments!
+            </p>
+            <Link to="/tournaments">
+              <Button variant="outline">Browse All Tournaments</Button>
+            </Link>
+          </div>
+        )}
+
         {/* Tournament Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {liveTournaments.map((tournament, index) => (
-            <TournamentCard
-              key={tournament.id}
-              tournament={tournament}
-              featured={index === 0}
-            />
-          ))}
-        </div>
+        {!loading && tournaments.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {tournaments.map((tournament, index) => {
+              const spotsLeft = tournament.max_players - (tournament.current_players || 0);
+              const isFull = spotsLeft <= 0;
+
+              return (
+                <div
+                  key={tournament.id}
+                  className={cn(
+                    "gaming-card group relative overflow-hidden transition-all duration-500 hover:-translate-y-1",
+                    index === 0 && "md:col-span-2 neon-border"
+                  )}
+                >
+                  {/* Status Badge */}
+                  <div className="absolute top-4 right-4 z-10">
+                    {getStatusBadge(tournament.status)}
+                  </div>
+
+                  {/* Type Badge */}
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "absolute top-4 left-4 z-10 uppercase font-display",
+                      tournament.type === "solo" && "border-neon-cyan text-neon-cyan",
+                      tournament.type === "duo" && "border-secondary text-secondary",
+                      tournament.type === "squad" && "border-primary text-primary"
+                    )}
+                  >
+                    {tournament.type}
+                  </Badge>
+
+                  {/* Content */}
+                  <div className="pt-12 space-y-4">
+                    <h3 className="font-display font-bold text-xl text-foreground group-hover:text-primary transition-colors">
+                      {tournament.title}
+                    </h3>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-muted/50 rounded-lg p-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs mb-1">
+                          <Trophy className="w-3.5 h-3.5" />
+                          Prize Pool
+                        </div>
+                        <div className="font-display font-bold text-lg gradient-text">
+                          ₹{(tournament.prize_pool || 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs mb-1">
+                          <Zap className="w-3.5 h-3.5" />
+                          Entry Fee
+                        </div>
+                        <div className="font-display font-bold text-lg text-neon-cyan">
+                          ₹{tournament.entry_fee || 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Players & Time */}
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          <span className={cn("font-semibold", spotsLeft <= 5 && "text-destructive")}>
+                            {spotsLeft}
+                          </span>
+                          /{tournament.max_players} spots
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-xs">
+                          {getStartTimeDisplay(tournament.start_time)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-fire rounded-full transition-all duration-500"
+                        style={{
+                          width: `${((tournament.current_players || 0) / tournament.max_players) * 100}%`,
+                        }}
+                      />
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-2">
+                      <Link to={`/tournaments`}>
+                        <Button
+                          variant={isFull ? "outline" : "fire"}
+                          className="w-full"
+                          disabled={isFull}
+                        >
+                          {isFull
+                            ? "Full"
+                            : tournament.status === "live"
+                            ? "View Match"
+                            : "Join Now"}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

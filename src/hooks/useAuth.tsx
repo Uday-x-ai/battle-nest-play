@@ -12,6 +12,7 @@ interface Profile {
   wallet_balance: number;
   total_wins: number;
   total_earnings: number;
+  upi_id: string | null;
   created_at: string;
   updated_at: string;
 }

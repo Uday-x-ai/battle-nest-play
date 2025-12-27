@@ -46,10 +46,12 @@ export interface TournamentFormData {
 }
 
 const tournamentTypes = [
-  { value: "solo", label: "Solo" },
-  { value: "duo", label: "Duo" },
-  { value: "squad", label: "Squad" },
-  { value: "clash_squad", label: "Clash Squad" },
+  { value: "solo", label: "Solo", icon: "👤" },
+  { value: "duo", label: "Duo", icon: "👥" },
+  { value: "squad", label: "Squad", icon: "🎮" },
+  { value: "clash_squad", label: "Clash Squad", icon: "⚔️" },
+  { value: "br_ranked", label: "BR Ranked", icon: "🏆" },
+  { value: "lone_wolf", label: "Lone Wolf", icon: "🐺" },
 ];
 
 const mapOptions = [

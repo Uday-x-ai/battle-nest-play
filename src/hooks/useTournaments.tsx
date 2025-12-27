@@ -6,7 +6,7 @@ import { toast } from "sonner";
 export interface Tournament {
   id: string;
   title: string;
-  type: "solo" | "duo" | "squad" | "clash_squad";
+  type: "solo" | "duo" | "squad" | "clash_squad" | "br_ranked" | "lone_wolf";
   entry_fee: number;
   prize_pool: number;
   max_players: number;

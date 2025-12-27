@@ -7,7 +7,7 @@ import { Search, Filter, Trophy, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTournaments } from "@/hooks/useTournaments";
 
-type FilterType = "all" | "solo" | "duo" | "squad" | "clash_squad";
+type FilterType = "all" | "solo" | "duo" | "squad" | "clash_squad" | "br_ranked" | "lone_wolf";
 type StatusFilter = "all" | "live" | "upcoming" | "completed";
 
 export default function Tournaments() {

@@ -1,0 +1,8 @@
+-- Add Free Fire style tournament fields
+ALTER TABLE public.tournaments 
+ADD COLUMN IF NOT EXISTS map TEXT DEFAULT 'bermuda',
+ADD COLUMN IF NOT EXISTS room_id TEXT,
+ADD COLUMN IF NOT EXISTS room_password TEXT,
+ADD COLUMN IF NOT EXISTS per_kill_prize NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS win_prize NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS description TEXT;

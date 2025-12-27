@@ -24,6 +24,7 @@ import {
   Loader2,
   Shield,
   X,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -267,7 +268,7 @@ export default function TournamentDetail() {
               </h1>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
                   <Trophy className="w-5 h-5 text-primary mx-auto mb-2" />
                   <div className="font-display font-bold text-xl gradient-text">
@@ -304,11 +305,49 @@ export default function TournamentDetail() {
                     Start Date
                   </div>
                 </div>
+                <div className="bg-muted/50 rounded-lg p-4 text-center">
+                  <MapPin className="w-5 h-5 text-fire-orange mx-auto mb-2" />
+                  <div className="font-display font-bold text-lg text-fire-orange capitalize">
+                    {tournament.map || "Bermuda"}
+                  </div>
+                  <div className="text-xs text-muted-foreground uppercase">
+                    Map
+                  </div>
+                </div>
               </div>
+
+              {/* Prize Info */}
+              {(tournament.per_kill_prize || tournament.win_prize) && (
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  {tournament.per_kill_prize > 0 && (
+                    <div className="bg-gradient-to-r from-fire-orange/20 to-fire-red/20 rounded-lg p-4 text-center border border-fire-orange/30">
+                      <div className="font-display font-bold text-2xl text-fire-orange">
+                        ₹{tournament.per_kill_prize}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Per Kill</div>
+                    </div>
+                  )}
+                  {tournament.win_prize > 0 && (
+                    <div className="bg-gradient-to-r from-gold/20 to-secondary/20 rounded-lg p-4 text-center border border-gold/30">
+                      <div className="font-display font-bold text-2xl text-gold">
+                        ₹{tournament.win_prize}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Winner Takes</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
+              {tournament.description && (
+                <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                  <p className="text-muted-foreground">{tournament.description}</p>
+                </div>
+              )}
             </div>
 
             {/* Room Details - Only visible after joining */}
-            {isJoined && tournament.status === "live" && (
+            {isJoined && tournament.status === "live" && tournament.room_id && (
               <div className="gaming-card neon-border animate-fade-in">
                 <h3 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
                   <Lock className="w-5 h-5 text-neon-cyan" />
@@ -321,12 +360,12 @@ export default function TournamentDetail() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-display font-bold text-xl text-foreground">
-                        ROOM123
+                        {tournament.room_id}
                       </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => copyToClipboard("ROOM123", "Room ID")}
+                        onClick={() => copyToClipboard(tournament.room_id || "", "Room ID")}
                       >
                         {copied === "Room ID" ? (
                           <CheckCircle className="w-5 h-5 text-green-500" />
@@ -336,32 +375,34 @@ export default function TournamentDetail() {
                       </Button>
                     </div>
                   </div>
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <div className="text-sm text-muted-foreground mb-1">
-                      Password
+                  {tournament.room_password && (
+                    <div className="bg-muted/50 rounded-lg p-4">
+                      <div className="text-sm text-muted-foreground mb-1">
+                        Password
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-display font-bold text-xl text-foreground">
+                          {tournament.room_password}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => copyToClipboard(tournament.room_password || "", "Password")}
+                        >
+                          {copied === "Password" ? (
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <Copy className="w-5 h-5" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-display font-bold text-xl text-foreground">
-                        PASS456
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => copyToClipboard("PASS456", "Password")}
-                      >
-                        {copied === "Password" ? (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <Copy className="w-5 h-5" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
+                  )}
                 </div>
                 <div className="mt-4 p-3 bg-primary/10 rounded-lg flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
                   <p className="text-sm text-muted-foreground">
-                    Join the custom room 5 minutes before the match starts.
+                    Join the custom room on <span className="font-semibold capitalize">{tournament.map || "Bermuda"}</span> map 5 minutes before the match starts.
                     Make sure to use your registered in-game name.
                   </p>
                 </div>

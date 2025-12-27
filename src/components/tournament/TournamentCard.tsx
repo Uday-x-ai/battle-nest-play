@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export interface Tournament {
   id: string;
   title: string;
-  type: "solo" | "duo" | "squad";
+  type: "solo" | "duo" | "squad" | "clash_squad";
   entryFee: number;
   prizePool: number;
   maxPlayers: number;

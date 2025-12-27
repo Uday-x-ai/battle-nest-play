@@ -37,12 +37,27 @@ export interface TournamentFormData {
   start_time: string;
   status: string;
   image_url?: string;
+  map?: string;
+  room_id?: string;
+  room_password?: string;
+  per_kill_prize?: number;
+  win_prize?: number;
+  description?: string;
 }
 
 const tournamentTypes = [
   { value: "solo", label: "Solo" },
   { value: "duo", label: "Duo" },
   { value: "squad", label: "Squad" },
+  { value: "clash_squad", label: "Clash Squad" },
+];
+
+const mapOptions = [
+  { value: "bermuda", label: "Bermuda" },
+  { value: "purgatory", label: "Purgatory" },
+  { value: "kalahari", label: "Kalahari" },
+  { value: "alpine", label: "Alpine" },
+  { value: "nextera", label: "Nextera" },
 ];
 
 const tournamentStatuses = [
@@ -68,6 +83,12 @@ export function TournamentForm({
     start_time: "",
     status: "upcoming",
     image_url: "",
+    map: "bermuda",
+    room_id: "",
+    room_password: "",
+    per_kill_prize: 0,
+    win_prize: 0,
+    description: "",
   });
 
   const isEditing = !!tournament;
@@ -83,6 +104,12 @@ export function TournamentForm({
         start_time: new Date(tournament.start_time).toISOString().slice(0, 16),
         status: tournament.status || "upcoming",
         image_url: tournament.image_url || "",
+        map: tournament.map || "bermuda",
+        room_id: tournament.room_id || "",
+        room_password: tournament.room_password || "",
+        per_kill_prize: tournament.per_kill_prize || 0,
+        win_prize: tournament.win_prize || 0,
+        description: tournament.description || "",
       });
     } else {
       setFormData({
@@ -94,6 +121,12 @@ export function TournamentForm({
         start_time: "",
         status: "upcoming",
         image_url: "",
+        map: "bermuda",
+        room_id: "",
+        room_password: "",
+        per_kill_prize: 0,
+        win_prize: 0,
+        description: "",
       });
     }
   }, [tournament, open]);
@@ -105,7 +138,7 @@ export function TournamentForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-card border-border">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-card border-border">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
             {isEditing ? "Edit Tournament" : "Create Tournament"}
@@ -239,6 +272,88 @@ export function TournamentForm({
             </div>
           </div>
 
+          {/* Map Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="map">Map</Label>
+            <Select
+              value={formData.map}
+              onValueChange={(value) =>
+                setFormData({ ...formData, map: value })
+              }
+            >
+              <SelectTrigger className="bg-muted border-border">
+                <SelectValue placeholder="Select map" />
+              </SelectTrigger>
+              <SelectContent>
+                {mapOptions.map((map) => (
+                  <SelectItem key={map.value} value={map.value}>
+                    {map.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Prize Configuration */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="per_kill_prize">Per Kill Prize (₹)</Label>
+              <Input
+                id="per_kill_prize"
+                type="number"
+                min="0"
+                value={formData.per_kill_prize}
+                onChange={(e) =>
+                  setFormData({ ...formData, per_kill_prize: Number(e.target.value) })
+                }
+                className="bg-muted border-border"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="win_prize">Winner Prize (₹)</Label>
+              <Input
+                id="win_prize"
+                type="number"
+                min="0"
+                value={formData.win_prize}
+                onChange={(e) =>
+                  setFormData({ ...formData, win_prize: Number(e.target.value) })
+                }
+                className="bg-muted border-border"
+              />
+            </div>
+          </div>
+
+          {/* Room Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="room_id">Room ID</Label>
+              <Input
+                id="room_id"
+                value={formData.room_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, room_id: e.target.value })
+                }
+                placeholder="Enter room ID"
+                className="bg-muted border-border"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="room_password">Room Password</Label>
+              <Input
+                id="room_password"
+                value={formData.room_password}
+                onChange={(e) =>
+                  setFormData({ ...formData, room_password: e.target.value })
+                }
+                placeholder="Enter password"
+                className="bg-muted border-border"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="image_url">Image URL (Optional)</Label>
             <Input
@@ -249,6 +364,19 @@ export function TournamentForm({
                 setFormData({ ...formData, image_url: e.target.value })
               }
               placeholder="https://example.com/image.jpg"
+              className="bg-muted border-border"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (Optional)</Label>
+            <Input
+              id="description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              placeholder="Tournament description..."
               className="bg-muted border-border"
             />
           </div>

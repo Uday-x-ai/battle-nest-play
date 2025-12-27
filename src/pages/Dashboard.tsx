@@ -61,6 +61,8 @@ export default function Dashboard() {
   const [submittingDeposit, setSubmittingDeposit] = useState(false);
   const [transactionRef, setTransactionRef] = useState("");
   const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [autoVerifying, setAutoVerifying] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
   const { user, profile, loading, refreshProfile } = useAuth();
   const { transactions, refetch: refetchWallet } = useWallet();
   const { requests: withdrawalRequests, createRequest: createWithdrawalRequest } = useWithdrawalRequests();
@@ -71,13 +73,18 @@ export default function Dashboard() {
   // Generate new transaction ref when deposit dialog opens
   const generateNewRef = useCallback(() => {
     setTransactionRef(generateTransactionRef());
+    setPollCount(0);
+    setAutoVerifying(false);
   }, []);
 
   // Verify payment with API
-  const verifyPayment = async () => {
-    if (!transactionRef || !depositAmount) return;
+  const verifyPayment = useCallback(async (isAutoCheck = false): Promise<boolean> => {
+    if (!transactionRef || !depositAmount) return false;
     
-    setVerifyingPayment(true);
+    if (!isAutoCheck) {
+      setVerifyingPayment(true);
+    }
+    
     try {
       const response = await fetch(
         `https://paytm.udayscripts.in/?mid=SzFThC49898719386494&id=${transactionRef}`
@@ -96,24 +103,67 @@ export default function Dashboard() {
             setDepositDialogOpen(false);
             setDepositAmount("");
             setUpiTransactionId("");
+            setAutoVerifying(false);
             await refetchWallet();
             await refreshProfile();
+            return true;
           }
-        } else {
+        } else if (!isAutoCheck) {
           toast.error(`Amount mismatch. Expected ₹${expectedAmount}, received ₹${txnAmount}`);
         }
+        return true;
       } else if (data.RESPCODE === "334") {
-        toast.info("Payment not found yet. Please complete the payment and try again.");
+        if (!isAutoCheck) {
+          toast.info("Payment not found yet. Please complete the payment and try again.");
+        }
+        return false;
       } else {
-        toast.error(data.RESPMSG || "Payment verification failed");
+        if (!isAutoCheck) {
+          toast.error(data.RESPMSG || "Payment verification failed");
+        }
+        return false;
       }
     } catch (error) {
       console.error("Payment verification error:", error);
-      toast.error("Failed to verify payment. Please try again.");
+      if (!isAutoCheck) {
+        toast.error("Failed to verify payment. Please try again.");
+      }
+      return false;
     } finally {
-      setVerifyingPayment(false);
+      if (!isAutoCheck) {
+        setVerifyingPayment(false);
+      }
     }
-  };
+  }, [transactionRef, depositAmount, createDepositRequest, refetchWallet, refreshProfile]);
+
+  // Auto-poll for payment verification
+  useEffect(() => {
+    if (!depositDialogOpen || !transactionRef || !depositAmount || !autoVerifying) {
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      setPollCount(prev => prev + 1);
+      const success = await verifyPayment(true);
+      if (success) {
+        setAutoVerifying(false);
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [depositDialogOpen, transactionRef, depositAmount, autoVerifying, verifyPayment]);
+
+  // Start auto-verifying when dialog opens
+  useEffect(() => {
+    if (depositDialogOpen && transactionRef) {
+      // Start auto-verification after 3 seconds
+      const timeout = setTimeout(() => {
+        setAutoVerifying(true);
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [depositDialogOpen, transactionRef]);
 
   useEffect(() => {
     if (profile?.upi_id) {
@@ -719,7 +769,7 @@ export default function Dashboard() {
             </Button>
             <Button 
               variant="fire" 
-              onClick={verifyPayment} 
+              onClick={() => verifyPayment(false)} 
               disabled={verifyingPayment}
               className="flex-1"
             >

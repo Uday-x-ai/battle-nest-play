@@ -143,7 +143,7 @@ export function TournamentCard({ tournament, featured = false, isRegistered = fa
               {tournament.status === "live" ? "View Match" : "Leave Tournament"}
             </Button>
           ) : (
-            <Link to={`/tournament/${tournament.id}`}>
+            <Link to={`/tournaments/${tournament.id}`}>
               <Button
                 variant={isFull ? "outline" : "fire"}
                 className="w-full"

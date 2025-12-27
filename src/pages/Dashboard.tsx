@@ -231,8 +231,8 @@ export default function Dashboard() {
 
   const handleDeposit = () => {
     const amount = parseInt(depositAmount);
-    if (!amount || amount < 10) {
-      toast.error("Minimum deposit amount is ₹10");
+    if (!amount || amount < 1) {
+      toast.error("Minimum deposit amount is ₹1");
       return;
     }
     generateNewRef();

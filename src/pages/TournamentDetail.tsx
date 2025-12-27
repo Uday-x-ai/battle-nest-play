@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Trophy,
   Users,
   Clock,
@@ -16,6 +23,7 @@ import {
   Lock,
   Loader2,
   Shield,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -26,6 +34,7 @@ import { useTournaments } from "@/hooks/useTournaments";
 interface RegisteredUser {
   user_id: string;
   registered_at: string;
+  slot_number: number | null;
   profile?: {
     username: string | null;
     game_name: string | null;
@@ -36,11 +45,15 @@ interface RegisteredUser {
 export default function TournamentDetail() {
   const { id } = useParams();
   const { user, isAdmin } = useAuth();
-  const { tournaments, loading: tournamentsLoading, isRegistered, joinTournament, leaveTournament, registrations } = useTournaments();
+  const { tournaments, loading: tournamentsLoading, isRegistered, joinTournament, leaveTournament, getTakenSlots } = useTournaments();
   const [copied, setCopied] = useState<string | null>(null);
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [showSlotDialog, setShowSlotDialog] = useState(false);
+  const [takenSlots, setTakenSlots] = useState<number[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const tournament = tournaments.find((t) => t.id === id);
   const isJoined = id ? isRegistered(id) : false;
@@ -56,7 +69,8 @@ export default function TournamentDetail() {
           .from("tournament_registrations")
           .select(`
             user_id,
-            registered_at
+            registered_at,
+            slot_number
           `)
           .eq("tournament_id", id);
 
@@ -91,15 +105,37 @@ export default function TournamentDetail() {
     fetchRegisteredUsers();
   }, [id, isAdmin]);
 
-  const handleJoin = async () => {
+  const handleOpenSlotDialog = async () => {
     if (!id || !user) {
       toast.error("Please login to join the tournament");
       return;
     }
+    
+    setLoadingSlots(true);
+    setShowSlotDialog(true);
+    
+    try {
+      const slots = await getTakenSlots(id);
+      setTakenSlots(slots);
+    } catch (error) {
+      console.error("Error fetching slots:", error);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleConfirmJoin = async () => {
+    if (!id || selectedSlot === null) {
+      toast.error("Please select a slot");
+      return;
+    }
+    
     setJoining(true);
-    const success = await joinTournament(id);
-    if (success) {
-      toast.success("Successfully joined the tournament!");
+    const result = await joinTournament(id, selectedSlot);
+    
+    if (result.success) {
+      setShowSlotDialog(false);
+      setSelectedSlot(null);
     }
     setJoining(false);
   };
@@ -353,14 +389,16 @@ export default function TournamentDetail() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {registeredUsers.map((regUser, index) => (
+                    {registeredUsers
+                      .sort((a, b) => (a.slot_number || 999) - (b.slot_number || 999))
+                      .map((regUser) => (
                       <div
                         key={regUser.user_id}
                         className="flex items-center justify-between bg-muted/50 rounded-lg p-3"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                            {index + 1}
+                          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                            #{regUser.slot_number || "-"}
                           </div>
                           <Avatar className="w-10 h-10">
                             <AvatarFallback className="bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground text-sm">
@@ -379,7 +417,7 @@ export default function TournamentDetail() {
                           </div>
                         </div>
                         <div className="text-right text-xs text-muted-foreground">
-                          <div>Registered</div>
+                          <div className="font-medium text-foreground">Slot #{regUser.slot_number || "N/A"}</div>
                           <div>{formatDate(regUser.registered_at)}</div>
                         </div>
                       </div>
@@ -475,9 +513,8 @@ export default function TournamentDetail() {
                   {joining ? "Processing..." : "Joined - Click to Leave"}
                 </Button>
               ) : (
-                <Button variant="fire" className="w-full" onClick={handleJoin} disabled={joining || spotsLeft <= 0}>
-                  {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  {joining ? "Joining..." : spotsLeft <= 0 ? "Tournament Full" : `Join for ₹${tournament.entry_fee || 0}`}
+                <Button variant="fire" className="w-full" onClick={handleOpenSlotDialog} disabled={joining || spotsLeft <= 0}>
+                  {spotsLeft <= 0 ? "Tournament Full" : `Join for ₹${tournament.entry_fee || 0}`}
                 </Button>
               )}
 
@@ -488,6 +525,99 @@ export default function TournamentDetail() {
           </div>
         </div>
       </div>
+
+      {/* Slot Selection Dialog */}
+      <Dialog open={showSlotDialog} onOpenChange={setShowSlotDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-background border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Choose Your Slot</DialogTitle>
+            <DialogDescription>
+              Select an available slot for the tournament. Disabled slots are already taken.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingSlots ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 py-4">
+                {Array.from({ length: tournament?.max_players || 0 }, (_, i) => i + 1).map((slotNum) => {
+                  const isTaken = takenSlots.includes(slotNum);
+                  const isSelected = selectedSlot === slotNum;
+                  
+                  return (
+                    <button
+                      key={slotNum}
+                      onClick={() => !isTaken && setSelectedSlot(slotNum)}
+                      disabled={isTaken}
+                      className={cn(
+                        "w-10 h-10 rounded-lg font-semibold text-sm transition-all",
+                        isTaken && "bg-muted/50 text-muted-foreground cursor-not-allowed opacity-50",
+                        !isTaken && !isSelected && "bg-muted hover:bg-primary/20 text-foreground cursor-pointer",
+                        isSelected && "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
+                      )}
+                    >
+                      {slotNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-4 text-sm text-muted-foreground py-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-muted" />
+                  <span>Available</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-muted/50 opacity-50" />
+                  <span>Taken</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-primary" />
+                  <span>Selected</span>
+                </div>
+              </div>
+
+              {selectedSlot && (
+                <div className="bg-primary/10 rounded-lg p-3 text-center">
+                  <span className="text-muted-foreground">Selected Slot: </span>
+                  <span className="font-bold text-primary text-lg">#{selectedSlot}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowSlotDialog(false);
+                    setSelectedSlot(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="fire"
+                  className="flex-1"
+                  onClick={handleConfirmJoin}
+                  disabled={!selectedSlot || joining}
+                >
+                  {joining ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Joining...
+                    </>
+                  ) : (
+                    `Confirm & Pay ₹${tournament?.entry_fee || 0}`
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

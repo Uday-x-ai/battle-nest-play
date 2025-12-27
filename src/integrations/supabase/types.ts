@@ -102,18 +102,21 @@ export type Database = {
         Row: {
           id: string
           registered_at: string
+          slot_number: number | null
           tournament_id: string
           user_id: string
         }
         Insert: {
           id?: string
           registered_at?: string
+          slot_number?: number | null
           tournament_id: string
           user_id: string
         }
         Update: {
           id?: string
           registered_at?: string
+          slot_number?: number | null
           tournament_id?: string
           user_id?: string
         }

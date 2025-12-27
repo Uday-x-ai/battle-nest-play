@@ -110,7 +110,7 @@ export function Navbar() {
               </Link>
             );
           })}
-          <div className="pt-4 border-t border-border space-y-2">
+          <div className="pt-4 border-t border-border space-y-3">
             <Link to="/admin" onClick={() => setIsOpen(false)}>
               <Button variant="outline" className="w-full gap-2">
                 <Shield className="w-4 h-4" />

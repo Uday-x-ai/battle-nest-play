@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -346,52 +347,61 @@ export default function Dashboard() {
                   <History className="w-5 h-5" />
                   Transaction History
                 </h3>
-              </div>
-              <div className="space-y-3">
-                {transactions.length > 0 ? transactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-full flex items-center justify-center",
-                          tx.amount > 0
-                            ? "bg-green-500/20 text-green-500"
-                            : "bg-destructive/20 text-destructive"
-                        )}
-                      >
-                        {tx.amount > 0 ? (
-                          <ArrowDownLeft className="w-5 h-5" />
-                        ) : (
-                          <ArrowUpRight className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-foreground">
-                          {tx.description || tx.type}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(tx.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      className={cn(
-                        "font-display font-bold",
-                        tx.amount > 0 ? "text-green-500" : "text-destructive"
-                      )}
-                    >
-                      {tx.amount > 0 ? "+" : ""}₹{Math.abs(tx.amount)}
-                    </div>
-                  </div>
-                )) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No transactions yet
-                  </div>
+                {transactions.length > 5 && (
+                  <span className="text-xs text-muted-foreground">
+                    {transactions.length} transactions
+                  </span>
                 )}
               </div>
+              {transactions.length > 0 ? (
+                <ScrollArea className={transactions.length > 5 ? "h-[320px]" : ""}>
+                  <div className="space-y-3 pr-4">
+                    {transactions.map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center",
+                              tx.amount > 0
+                                ? "bg-green-500/20 text-green-500"
+                                : "bg-destructive/20 text-destructive"
+                            )}
+                          >
+                            {tx.amount > 0 ? (
+                              <ArrowDownLeft className="w-5 h-5" />
+                            ) : (
+                              <ArrowUpRight className="w-5 h-5" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              {tx.description || tx.type}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(tx.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div
+                          className={cn(
+                            "font-display font-bold",
+                            tx.amount > 0 ? "text-green-500" : "text-destructive"
+                          )}
+                        >
+                          {tx.amount > 0 ? "+" : ""}₹{Math.abs(tx.amount)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No transactions yet
+                </div>
+              )}
             </div>
           </div>
 

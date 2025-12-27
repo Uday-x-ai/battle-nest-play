@@ -34,7 +34,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminTournaments } from "@/hooks/useAdminTournaments";
+import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { TournamentForm, TournamentFormData } from "@/components/admin/TournamentForm";
+import { UserManagement } from "@/components/admin/UserManagement";
 import { Tournament } from "@/hooks/useTournaments";
 import { format } from "date-fns";
 
@@ -59,6 +61,15 @@ export default function Admin() {
     deleteTournament,
     getStats,
   } = useAdminTournaments();
+  const {
+    users,
+    loading: usersLoading,
+    fetchUsers,
+    addRole,
+    removeRole,
+    updateWalletBalance,
+    getStats: getUserStats,
+  } = useAdminUsers();
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -70,10 +81,12 @@ export default function Admin() {
   useEffect(() => {
     if (user && isAdmin) {
       fetchTournaments();
+      fetchUsers();
     }
-  }, [user, isAdmin, fetchTournaments]);
+  }, [user, isAdmin, fetchTournaments, fetchUsers]);
 
   const stats = getStats();
+  const userStats = getUserStats();
 
   const handleCreateTournament = () => {
     setEditingTournament(null);
@@ -505,19 +518,17 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Users - Placeholder */}
+          {/* Users */}
           {activeTab === "users" && (
-            <div className="space-y-6">
-              <h1 className="font-display font-bold text-2xl text-foreground">
-                Users
-              </h1>
-              <div className="gaming-card text-center py-12">
-                <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  User management coming soon
-                </p>
-              </div>
-            </div>
+            <UserManagement
+              users={users}
+              loading={usersLoading}
+              onRefresh={fetchUsers}
+              onAddRole={addRole}
+              onRemoveRole={removeRole}
+              onUpdateWallet={updateWalletBalance}
+              stats={userStats}
+            />
           )}
 
           {/* Payments - Placeholder */}

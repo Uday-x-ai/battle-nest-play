@@ -141,7 +141,7 @@ export function useAdminUsers() {
         .from("wallet_transactions")
         .insert({
           user_id: userId,
-          type: type === "deposit" ? "admin_deposit" : "admin_withdraw",
+          type: type === "deposit" ? "deposit" : "withdrawal",
           amount: type === "deposit" ? amount : -amount,
           description: `Admin ${type}: ₹${amount}`,
         });

@@ -76,6 +76,70 @@ export function useDepositRequests() {
     return { success: true };
   };
 
+  // Auto-approve deposit after successful payment verification
+  const createApprovedDeposit = async (amount: number, upiTransactionId: string) => {
+    if (!user) {
+      toast.error("Please login to create a deposit request");
+      return { success: false };
+    }
+
+    if (amount < 1) {
+      toast.error("Minimum deposit is ₹1");
+      return { success: false };
+    }
+
+    // Create deposit request as approved
+    const { error: depositError } = await supabase.from("deposit_requests").insert({
+      user_id: user.id,
+      amount: amount,
+      upi_transaction_id: upiTransactionId.trim(),
+      status: "approved",
+      processed_at: new Date().toISOString()
+    });
+
+    if (depositError) {
+      console.error("Failed to create deposit request:", depositError);
+      toast.error("Failed to create deposit request");
+      return { success: false };
+    }
+
+    // Get current wallet balance
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("wallet_balance")
+      .eq("user_id", user.id)
+      .single();
+
+    const currentBalance = profileData?.wallet_balance || 0;
+
+    // Update wallet balance
+    const { error: walletError } = await supabase
+      .from("profiles")
+      .update({ wallet_balance: currentBalance + amount })
+      .eq("user_id", user.id);
+
+    if (walletError) {
+      console.error("Failed to update wallet balance:", walletError);
+      toast.error("Failed to update wallet balance");
+      return { success: false };
+    }
+
+    // Create transaction record
+    const { error: txnError } = await supabase.from("wallet_transactions").insert({
+      user_id: user.id,
+      type: "deposit",
+      amount: amount,
+      description: `UPI deposit - ${upiTransactionId}`
+    });
+
+    if (txnError) {
+      console.error("Failed to create transaction:", txnError);
+    }
+
+    await fetchUserRequests();
+    return { success: true };
+  };
+
   useEffect(() => {
     fetchUserRequests();
 
@@ -119,6 +183,7 @@ export function useDepositRequests() {
     requests,
     loading,
     createRequest,
+    createApprovedDeposit,
     refetch: fetchUserRequests
   };
 }

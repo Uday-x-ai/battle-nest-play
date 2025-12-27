@@ -37,16 +37,21 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useTournaments } from "@/hooks/useTournaments";
 import { useWithdrawalRequests } from "@/hooks/useWithdrawalRequests";
+import { useDepositRequests } from "@/hooks/useDepositRequests";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const [depositAmount, setDepositAmount] = useState("");
   const [upiDialogOpen, setUpiDialogOpen] = useState(false);
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
+  const [upiTransactionId, setUpiTransactionId] = useState("");
   const [upiId, setUpiId] = useState("");
   const [savingUpi, setSavingUpi] = useState(false);
+  const [submittingDeposit, setSubmittingDeposit] = useState(false);
   const { user, profile, loading, refreshProfile } = useAuth();
-  const { transactions, deposit } = useWallet();
+  const { transactions } = useWallet();
   const { requests: withdrawalRequests, createRequest: createWithdrawalRequest } = useWithdrawalRequests();
+  const { requests: depositRequests, createRequest: createDepositRequest } = useDepositRequests();
   const { tournaments, registrations } = useTournaments();
   const navigate = useNavigate();
 
@@ -62,14 +67,29 @@ export default function Dashboard() {
     }
   }, [user, loading, navigate]);
 
-  const handleDeposit = async () => {
+  const handleDeposit = () => {
     const amount = parseInt(depositAmount);
     if (!amount || amount < 10) {
       toast.error("Minimum deposit amount is ₹10");
       return;
     }
-    await deposit(amount);
-    setDepositAmount("");
+    setDepositDialogOpen(true);
+  };
+
+  const handleSubmitDeposit = async () => {
+    const amount = parseInt(depositAmount);
+    if (!upiTransactionId.trim()) {
+      toast.error("Please enter UPI transaction ID");
+      return;
+    }
+    setSubmittingDeposit(true);
+    const result = await createDepositRequest(amount, upiTransactionId);
+    setSubmittingDeposit(false);
+    if (result.success) {
+      setDepositDialogOpen(false);
+      setDepositAmount("");
+      setUpiTransactionId("");
+    }
   };
 
   const handleWithdraw = async () => {
@@ -257,6 +277,48 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Deposit Requests */}
+            {depositRequests.length > 0 && (
+              <div className="gaming-card">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display font-semibold text-lg text-foreground flex items-center gap-2">
+                    <ArrowDownLeft className="w-5 h-5 text-green-500" />
+                    Deposit Requests
+                  </h3>
+                  {depositRequests.length > 5 && (
+                    <span className="text-xs text-muted-foreground">
+                      {depositRequests.length} requests
+                    </span>
+                  )}
+                </div>
+                <ScrollArea className={depositRequests.length > 5 ? "h-[320px]" : ""}>
+                  <div className="space-y-3 pr-4">
+                    {depositRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                            <Plus className="w-5 h-5 text-green-500" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              ₹{Number(req.amount).toLocaleString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(req.created_at).toLocaleDateString()} • TXN: {req.upi_transaction_id}
+                            </div>
+                          </div>
+                        </div>
+                        {getRequestStatusBadge(req.status)}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
             {/* Withdrawal Requests */}
             {withdrawalRequests.length > 0 && (
@@ -510,6 +572,49 @@ export default function Dashboard() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 "Save UPI ID"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deposit Dialog */}
+      <Dialog open={depositDialogOpen} onOpenChange={setDepositDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Add Money via UPI</DialogTitle>
+            <DialogDescription>
+              Pay ₹{depositAmount} to the UPI ID below and enter the transaction ID to verify your payment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted/50 rounded-lg text-center">
+              <div className="text-sm text-muted-foreground mb-1">Pay to UPI ID</div>
+              <div className="font-display font-bold text-lg text-primary">admin@upi</div>
+              <div className="text-xs text-muted-foreground mt-2">Amount: ₹{depositAmount}</div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">UPI Transaction ID</label>
+              <Input
+                placeholder="Enter your UPI transaction ID"
+                value={upiTransactionId}
+                onChange={(e) => setUpiTransactionId(e.target.value)}
+                className="bg-muted border-border"
+              />
+              <p className="text-xs text-muted-foreground">
+                You can find this in your UPI app after making the payment
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDepositDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="fire" onClick={handleSubmitDeposit} disabled={submittingDeposit}>
+              {submittingDeposit ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Submit Request"
               )}
             </Button>
           </DialogFooter>

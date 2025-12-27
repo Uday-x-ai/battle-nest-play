@@ -36,11 +36,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdminTournaments } from "@/hooks/useAdminTournaments";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminWithdrawalRequests } from "@/hooks/useWithdrawalRequests";
+import { useAdminDepositRequests } from "@/hooks/useDepositRequests";
 import { TournamentForm, TournamentFormData } from "@/components/admin/TournamentForm";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { WithdrawalRequestsManagement } from "@/components/admin/WithdrawalRequestsManagement";
+import { DepositRequestsManagement } from "@/components/admin/DepositRequestsManagement";
 import { Tournament } from "@/hooks/useTournaments";
 import { format } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type AdminTab = "dashboard" | "tournaments" | "users" | "payments";
 
@@ -80,6 +83,14 @@ export default function Admin() {
     getStats: getWithdrawalStats,
     refetch: refetchWithdrawals,
   } = useAdminWithdrawalRequests();
+  const {
+    requests: depositRequests,
+    loading: depositLoading,
+    approveRequest: approveDeposit,
+    rejectRequest: rejectDeposit,
+    getStats: getDepositStats,
+    refetch: refetchDeposits,
+  } = useAdminDepositRequests();
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -541,16 +552,36 @@ export default function Admin() {
             />
           )}
 
-          {/* Payments - Withdrawal Requests Management */}
+          {/* Payments - Deposits & Withdrawals */}
           {activeTab === "payments" && (
-            <WithdrawalRequestsManagement
-              requests={withdrawalRequests}
-              loading={withdrawalLoading}
-              onRefresh={refetchWithdrawals}
-              onApprove={approveRequest}
-              onReject={rejectRequest}
-              stats={getWithdrawalStats()}
-            />
+            <div className="space-y-6">
+              <Tabs defaultValue="deposits" className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="deposits">UPI Deposits</TabsTrigger>
+                  <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+                </TabsList>
+                <TabsContent value="deposits" className="mt-6">
+                  <DepositRequestsManagement
+                    requests={depositRequests}
+                    loading={depositLoading}
+                    onRefresh={refetchDeposits}
+                    onApprove={approveDeposit}
+                    onReject={rejectDeposit}
+                    stats={getDepositStats()}
+                  />
+                </TabsContent>
+                <TabsContent value="withdrawals" className="mt-6">
+                  <WithdrawalRequestsManagement
+                    requests={withdrawalRequests}
+                    loading={withdrawalLoading}
+                    onRefresh={refetchWithdrawals}
+                    onApprove={approveRequest}
+                    onReject={rejectRequest}
+                    stats={getWithdrawalStats()}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
           )}
         </main>
       </div>

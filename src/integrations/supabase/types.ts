@@ -135,46 +135,64 @@ export type Database = {
           created_at: string
           created_by: string | null
           current_players: number | null
+          description: string | null
           entry_fee: number | null
           id: string
           image_url: string | null
+          map: string | null
           max_players: number
+          per_kill_prize: number | null
           prize_pool: number | null
+          room_id: string | null
+          room_password: string | null
           start_time: string
           status: string | null
           title: string
           type: string
           updated_at: string
+          win_prize: number | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           current_players?: number | null
+          description?: string | null
           entry_fee?: number | null
           id?: string
           image_url?: string | null
+          map?: string | null
           max_players: number
+          per_kill_prize?: number | null
           prize_pool?: number | null
+          room_id?: string | null
+          room_password?: string | null
           start_time: string
           status?: string | null
           title: string
           type: string
           updated_at?: string
+          win_prize?: number | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
           current_players?: number | null
+          description?: string | null
           entry_fee?: number | null
           id?: string
           image_url?: string | null
+          map?: string | null
           max_players?: number
+          per_kill_prize?: number | null
           prize_pool?: number | null
+          room_id?: string | null
+          room_password?: string | null
           start_time?: string
           status?: string | null
           title?: string
           type?: string
           updated_at?: string
+          win_prize?: number | null
         }
         Relationships: []
       }

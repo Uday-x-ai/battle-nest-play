@@ -46,6 +46,12 @@ export function useAdminTournaments() {
           status: formData.status,
           image_url: formData.image_url || null,
           created_by: user.id,
+          map: formData.map || "bermuda",
+          room_id: formData.room_id || null,
+          room_password: formData.room_password || null,
+          per_kill_prize: formData.per_kill_prize || 0,
+          win_prize: formData.win_prize || 0,
+          description: formData.description || null,
         });
 
         if (error) throw error;
@@ -75,6 +81,12 @@ export function useAdminTournaments() {
             start_time: new Date(formData.start_time).toISOString(),
             status: formData.status,
             image_url: formData.image_url || null,
+            map: formData.map || "bermuda",
+            room_id: formData.room_id || null,
+            room_password: formData.room_password || null,
+            per_kill_prize: formData.per_kill_prize || 0,
+            win_prize: formData.win_prize || 0,
+            description: formData.description || null,
           })
           .eq("id", id);
 

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 export interface Tournament {
   id: string;
   title: string;
-  type: "solo" | "duo" | "squad";
+  type: "solo" | "duo" | "squad" | "clash_squad";
   entry_fee: number;
   prize_pool: number;
   max_players: number;
@@ -16,6 +16,12 @@ export interface Tournament {
   image_url: string | null;
   created_by: string | null;
   created_at: string;
+  map?: string;
+  room_id?: string;
+  room_password?: string;
+  per_kill_prize?: number;
+  win_prize?: number;
+  description?: string;
 }
 
 export interface TournamentRegistration {

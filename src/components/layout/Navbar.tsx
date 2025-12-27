@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Wallet, Trophy, User, Shield, Gamepad2 } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, Wallet, Trophy, User, Shield, Gamepad2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const navLinks = [
   { href: "/", label: "Home", icon: Gamepad2 },
@@ -14,6 +15,14 @@ const navLinks = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, isAdmin, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+    setIsOpen(false);
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
@@ -54,23 +63,34 @@ export function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-2">
-            <Link to="/dashboard">
-              <Button variant="neon" size="sm" className="gap-1.5 px-3">
-                <Wallet className="w-4 h-4" />
-                <span>₹500</span>
-              </Button>
-            </Link>
-            <Link to="/admin">
-              <Button variant="outline" size="sm" className="gap-1.5 px-3">
-                <Shield className="w-4 h-4" />
-                Admin
-              </Button>
-            </Link>
-            <Link to="/auth">
-              <Button variant="fire" size="sm" className="px-4">
-                Login
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                <Link to="/dashboard">
+                  <Button variant="neon" size="sm" className="gap-1.5 px-3">
+                    <Wallet className="w-4 h-4" />
+                    <span>₹{(profile?.wallet_balance || 0).toFixed(0)}</span>
+                  </Button>
+                </Link>
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm" className="gap-1.5 px-3">
+                      <Shield className="w-4 h-4" />
+                      Admin
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-1.5 px-3">
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Link to="/auth">
+                <Button variant="fire" size="sm" className="px-4">
+                  Login
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -111,17 +131,28 @@ export function Navbar() {
             );
           })}
           <div className="pt-4 border-t border-border space-y-3">
-            <Link to="/admin" onClick={() => setIsOpen(false)}>
-              <Button variant="outline" className="w-full gap-2">
-                <Shield className="w-4 h-4" />
-                Admin Panel
-              </Button>
-            </Link>
-            <Link to="/auth" onClick={() => setIsOpen(false)}>
-              <Button variant="fire" className="w-full">
-                Login / Register
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full gap-2">
+                      <Shield className="w-4 h-4" />
+                      Admin Panel
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="ghost" className="w-full gap-2" onClick={handleSignOut}>
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Link to="/auth" onClick={() => setIsOpen(false)}>
+                <Button variant="fire" className="w-full">
+                  Login / Register
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>

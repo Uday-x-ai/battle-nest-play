@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Wallet,
@@ -16,46 +16,84 @@ import {
   Settings,
   Bell,
   Copy,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-const userStats = {
-  balance: 500,
-  totalWins: 24,
-  totalEarnings: 12500,
-  totalMatches: 87,
-  winRate: 27.5,
-};
-
-const recentMatches = [
-  { id: 1, title: "Fire Storm Championship", position: 1, prize: 2000, date: "Today" },
-  { id: 2, title: "Solo Showdown", position: 5, prize: 150, date: "Yesterday" },
-  { id: 3, title: "Duo Domination", position: 12, prize: 0, date: "2 days ago" },
-  { id: 4, title: "Night Raid Battle", position: 3, prize: 500, date: "3 days ago" },
-];
-
-const transactions = [
-  { id: 1, type: "credit", amount: 2000, description: "Prize - Fire Storm", date: "Today" },
-  { id: 2, type: "debit", amount: 50, description: "Entry - Solo Showdown", date: "Yesterday" },
-  { id: 3, type: "credit", amount: 500, description: "Deposit - UPI", date: "2 days ago" },
-  { id: 4, type: "debit", amount: 100, description: "Entry - Night Raid", date: "3 days ago" },
-];
+import { useAuth } from "@/hooks/useAuth";
+import { useWallet } from "@/hooks/useWallet";
+import { useTournaments } from "@/hooks/useTournaments";
 
 export default function Dashboard() {
   const [depositAmount, setDepositAmount] = useState("");
+  const { user, profile, loading } = useAuth();
+  const { transactions, deposit, withdraw } = useWallet();
+  const { tournaments, registrations } = useTournaments();
+  const navigate = useNavigate();
 
-  const handleDeposit = () => {
-    if (!depositAmount || parseInt(depositAmount) < 10) {
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  const handleDeposit = async () => {
+    const amount = parseInt(depositAmount);
+    if (!amount || amount < 10) {
       toast.error("Minimum deposit amount is ₹10");
       return;
     }
-    toast.success(`Deposit request of ₹${depositAmount} initiated`);
+    await deposit(amount);
     setDepositAmount("");
   };
 
-  const handleWithdraw = () => {
-    toast.info("Withdrawal feature coming soon!");
+  const handleWithdraw = async () => {
+    const amount = parseInt(depositAmount);
+    if (!amount || amount < 100) {
+      toast.error("Minimum withdrawal amount is ₹100");
+      return;
+    }
+    await withdraw(amount);
+    setDepositAmount("");
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user || !profile) {
+    return null;
+  }
+
+  const userStats = {
+    balance: profile.wallet_balance || 0,
+    totalWins: profile.total_wins || 0,
+    totalEarnings: profile.total_earnings || 0,
+    totalMatches: registrations.length,
+    winRate: registrations.length > 0 ? ((profile.total_wins / registrations.length) * 100).toFixed(1) : 0,
+  };
+
+  // Get recent matches from registrations with tournament data
+  const recentMatches = registrations.slice(0, 4).map(reg => {
+    const tournament = tournaments.find(t => t.id === reg.tournament_id);
+    return {
+      id: reg.id,
+      title: tournament?.title || "Unknown Tournament",
+      position: "-",
+      prize: 0,
+      date: new Date(reg.registered_at).toLocaleDateString()
+    };
+  });
+
+  const getInitials = (name: string | null) => {
+    if (!name) return "U";
+    return name.slice(0, 2).toUpperCase();
   };
 
   return (
@@ -66,14 +104,16 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16 border-2 border-primary">
               <AvatarFallback className="bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground font-display text-xl">
-                PG
+                {getInitials(profile.game_name || profile.username)}
               </AvatarFallback>
             </Avatar>
             <div>
               <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground">
-                ProGamer99
+                {profile.game_name || profile.username || "Player"}
               </h1>
-              <p className="text-muted-foreground">Player ID: #FF2847591</p>
+              <p className="text-muted-foreground">
+                {user.email}
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -135,26 +175,18 @@ export default function Dashboard() {
                 <h3 className="font-display font-semibold text-lg text-foreground">
                   Recent Matches
                 </h3>
-                <Button variant="ghost" size="sm" className="text-primary">
+                <Button variant="ghost" size="sm" className="text-primary" onClick={() => navigate("/tournaments")}>
                   View All
                 </Button>
               </div>
               <div className="space-y-3">
-                {recentMatches.map((match) => (
+                {recentMatches.length > 0 ? recentMatches.map((match) => (
                   <div
                     key={match.id}
                     className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center font-display font-bold",
-                          match.position === 1 && "bg-gradient-to-r from-gold to-amber-600 text-background",
-                          match.position === 2 && "bg-gray-400/20 text-gray-300",
-                          match.position === 3 && "bg-amber-700/30 text-amber-600",
-                          match.position > 3 && "bg-muted text-muted-foreground"
-                        )}
-                      >
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center font-display font-bold bg-muted text-muted-foreground">
                         #{match.position}
                       </div>
                       <div>
@@ -172,11 +204,15 @@ export default function Dashboard() {
                           +₹{match.prize}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">-</span>
+                        <span className="text-muted-foreground">Pending</span>
                       )}
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No matches yet. Join a tournament!
+                  </div>
+                )}
               </div>
             </div>
 
@@ -189,7 +225,7 @@ export default function Dashboard() {
                 </h3>
               </div>
               <div className="space-y-3">
-                {transactions.map((tx) => (
+                {transactions.length > 0 ? transactions.map((tx) => (
                   <div
                     key={tx.id}
                     className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
@@ -198,12 +234,12 @@ export default function Dashboard() {
                       <div
                         className={cn(
                           "w-10 h-10 rounded-full flex items-center justify-center",
-                          tx.type === "credit"
+                          tx.amount > 0
                             ? "bg-green-500/20 text-green-500"
                             : "bg-destructive/20 text-destructive"
                         )}
                       >
-                        {tx.type === "credit" ? (
+                        {tx.amount > 0 ? (
                           <ArrowDownLeft className="w-5 h-5" />
                         ) : (
                           <ArrowUpRight className="w-5 h-5" />
@@ -211,23 +247,27 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <div className="font-semibold text-foreground">
-                          {tx.description}
+                          {tx.description || tx.type}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {tx.date}
+                          {new Date(tx.created_at).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
                     <div
                       className={cn(
                         "font-display font-bold",
-                        tx.type === "credit" ? "text-green-500" : "text-destructive"
+                        tx.amount > 0 ? "text-green-500" : "text-destructive"
                       )}
                     >
-                      {tx.type === "credit" ? "+" : "-"}₹{tx.amount}
+                      {tx.amount > 0 ? "+" : ""}₹{Math.abs(tx.amount)}
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No transactions yet
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -241,20 +281,8 @@ export default function Dashboard() {
                   Wallet Balance
                 </div>
                 <div className="font-display font-black text-4xl gradient-text-neon">
-                  ₹{userStats.balance}
+                  ₹{userStats.balance.toFixed(2)}
                 </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <Button variant="fire" className="h-12" onClick={handleDeposit}>
-                  <Plus className="w-4 h-4" />
-                  Add Money
-                </Button>
-                <Button variant="neon" className="h-12" onClick={handleWithdraw}>
-                  <ArrowUpRight className="w-4 h-4" />
-                  Withdraw
-                </Button>
               </div>
 
               {/* Deposit Form */}
@@ -284,26 +312,16 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* UPI ID */}
-              <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                <div className="text-sm text-muted-foreground mb-2">
-                  Pay to UPI ID
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-foreground">
-                    ffarena@ybl
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      navigator.clipboard.writeText("ffarena@ybl");
-                      toast.success("UPI ID copied!");
-                    }}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                <Button variant="fire" className="h-12" onClick={handleDeposit}>
+                  <Plus className="w-4 h-4" />
+                  Add Money
+                </Button>
+                <Button variant="neon" className="h-12" onClick={handleWithdraw}>
+                  <ArrowUpRight className="w-4 h-4" />
+                  Withdraw
+                </Button>
               </div>
             </div>
           </div>

@@ -1,102 +1,11 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { TournamentCard, Tournament } from "@/components/tournament/TournamentCard";
+import { TournamentCard } from "@/components/tournament/TournamentCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Trophy } from "lucide-react";
+import { Search, Filter, Trophy, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const allTournaments: Tournament[] = [
-  {
-    id: "1",
-    title: "Fire Storm Championship",
-    type: "squad",
-    entryFee: 50,
-    prizePool: 5000,
-    maxPlayers: 100,
-    currentPlayers: 87,
-    startTime: "Starting in 15 min",
-    status: "live",
-  },
-  {
-    id: "2",
-    title: "Solo Showdown",
-    type: "solo",
-    entryFee: 25,
-    prizePool: 2000,
-    maxPlayers: 50,
-    currentPlayers: 45,
-    startTime: "Starting in 30 min",
-    status: "upcoming",
-  },
-  {
-    id: "3",
-    title: "Duo Domination",
-    type: "duo",
-    entryFee: 40,
-    prizePool: 3500,
-    maxPlayers: 60,
-    currentPlayers: 42,
-    startTime: "Starting in 1 hour",
-    status: "upcoming",
-  },
-  {
-    id: "4",
-    title: "Night Raid Battle",
-    type: "squad",
-    entryFee: 100,
-    prizePool: 10000,
-    maxPlayers: 100,
-    currentPlayers: 78,
-    startTime: "Today, 9:00 PM",
-    status: "upcoming",
-  },
-  {
-    id: "5",
-    title: "Beginner's Arena",
-    type: "solo",
-    entryFee: 10,
-    prizePool: 500,
-    maxPlayers: 30,
-    currentPlayers: 12,
-    startTime: "Today, 6:00 PM",
-    status: "upcoming",
-  },
-  {
-    id: "6",
-    title: "Pro League Finals",
-    type: "squad",
-    entryFee: 200,
-    prizePool: 25000,
-    maxPlayers: 100,
-    currentPlayers: 100,
-    startTime: "Yesterday",
-    status: "completed",
-  },
-  {
-    id: "7",
-    title: "Weekend Warriors",
-    type: "duo",
-    entryFee: 30,
-    prizePool: 2500,
-    maxPlayers: 50,
-    currentPlayers: 38,
-    startTime: "Tomorrow, 8:00 PM",
-    status: "upcoming",
-  },
-  {
-    id: "8",
-    title: "Midnight Madness",
-    type: "squad",
-    entryFee: 75,
-    prizePool: 7500,
-    maxPlayers: 80,
-    currentPlayers: 65,
-    startTime: "Tonight, 11:00 PM",
-    status: "upcoming",
-  },
-];
+import { useTournaments } from "@/hooks/useTournaments";
 
 type FilterType = "all" | "solo" | "duo" | "squad";
 type StatusFilter = "all" | "live" | "upcoming" | "completed";
@@ -105,13 +14,38 @@ export default function Tournaments() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<FilterType>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const { tournaments, loading, isRegistered, joinTournament, leaveTournament } = useTournaments();
 
-  const filteredTournaments = allTournaments.filter((t) => {
+  const filteredTournaments = tournaments.filter((t) => {
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase());
     const matchesType = typeFilter === "all" || t.type === typeFilter;
     const matchesStatus = statusFilter === "all" || t.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  // Transform tournaments to match the TournamentCard interface
+  const transformedTournaments = filteredTournaments.map(t => ({
+    id: t.id,
+    title: t.title,
+    type: t.type,
+    entryFee: t.entry_fee,
+    prizePool: t.prize_pool,
+    maxPlayers: t.max_players,
+    currentPlayers: t.current_players,
+    startTime: new Date(t.start_time).toLocaleString(),
+    status: t.status,
+    image: t.image_url || undefined
+  }));
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -193,10 +127,16 @@ export default function Tournaments() {
         </div>
 
         {/* Tournament Grid */}
-        {filteredTournaments.length > 0 ? (
+        {transformedTournaments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredTournaments.map((tournament) => (
-              <TournamentCard key={tournament.id} tournament={tournament} />
+            {transformedTournaments.map((tournament) => (
+              <TournamentCard 
+                key={tournament.id} 
+                tournament={tournament}
+                isRegistered={isRegistered(tournament.id)}
+                onJoin={() => joinTournament(tournament.id)}
+                onLeave={() => leaveTournament(tournament.id)}
+              />
             ))}
           </div>
         ) : (
@@ -206,7 +146,7 @@ export default function Tournaments() {
               No tournaments found
             </h3>
             <p className="text-muted-foreground">
-              Try adjusting your filters or search terms
+              {tournaments.length === 0 ? "No tournaments available yet" : "Try adjusting your filters or search terms"}
             </p>
           </div>
         )}

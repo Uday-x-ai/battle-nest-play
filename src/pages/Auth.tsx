@@ -1,43 +1,95 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Gamepad2, Phone, Send, ArrowRight } from "lucide-react";
+import { Gamepad2, Mail, Lock, User, Send, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
 
 type AuthMode = "login" | "register";
 
+const emailSchema = z.string().trim().email("Please enter a valid email address");
+const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
+const gameNameSchema = z.string().trim().min(2, "Game name must be at least 2 characters").max(50, "Game name is too long");
+
 export default function Auth() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [telegramId, setTelegramId] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [gameName, setGameName] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const [telegramId, setTelegramId] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp, user, loading } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSendOtp = () => {
-    if (!phone || phone.length !== 10) {
-      toast.error("Please enter a valid 10-digit phone number");
-      return;
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/dashboard");
     }
-    setOtpSent(true);
-    toast.success("OTP sent to your phone!");
-  };
+  }, [user, loading, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpSent) {
-      handleSendOtp();
-      return;
+    setIsLoading(true);
+
+    try {
+      // Validate inputs
+      emailSchema.parse(email);
+      passwordSchema.parse(password);
+      
+      if (mode === "register") {
+        gameNameSchema.parse(gameName);
+      }
+
+      if (mode === "login") {
+        const { error } = await signIn(email, password);
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password");
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.success("Welcome back!");
+          navigate("/dashboard");
+        }
+      } else {
+        const { error } = await signUp(email, password, {
+          game_name: gameName,
+          telegram_id: telegramId || undefined
+        });
+        if (error) {
+          if (error.message.includes("already registered")) {
+            toast.error("This email is already registered. Please login instead.");
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.success("Account created successfully!");
+          navigate("/dashboard");
+        }
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toast.error(err.errors[0].message);
+      }
+    } finally {
+      setIsLoading(false);
     }
-    if (mode === "register" && !gameName) {
-      toast.error("Please enter your in-game name");
-      return;
-    }
-    toast.success(mode === "login" ? "Welcome back!" : "Account created successfully!");
   };
+
+  if (loading) {
+    return (
+      <Layout showFooter={false}>
+        <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout showFooter={false}>
@@ -95,65 +147,64 @@ export default function Auth() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Phone Number */}
+              {/* Email */}
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-foreground">
-                  Mobile Number
+                <Label htmlFor="email" className="text-foreground">
+                  Email Address
                 </Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter 10-digit number"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 bg-muted border-border"
-                    maxLength={10}
+                    required
                   />
                 </div>
               </div>
 
-              {/* OTP */}
-              {otpSent && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="otp" className="text-foreground">
-                    Enter OTP
-                  </Label>
+              {/* Password */}
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-foreground">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
-                    id="otp"
-                    type="text"
-                    placeholder="6-digit OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="bg-muted border-border text-center font-display text-lg tracking-widest"
-                    maxLength={6}
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 bg-muted border-border"
+                    required
+                    minLength={6}
                   />
-                  <button
-                    type="button"
-                    className="text-sm text-primary hover:underline"
-                    onClick={() => toast.info("OTP resent!")}
-                  >
-                    Resend OTP
-                  </button>
                 </div>
-              )}
+              </div>
 
               {/* Register Fields */}
-              {mode === "register" && otpSent && (
+              {mode === "register" && (
                 <>
                   <div className="space-y-2 animate-fade-in">
                     <Label htmlFor="gameName" className="text-foreground">
                       In-Game Name
                     </Label>
-                    <Input
-                      id="gameName"
-                      type="text"
-                      placeholder="Your Free Fire name"
-                      value={gameName}
-                      onChange={(e) => setGameName(e.target.value)}
-                      className="bg-muted border-border"
-                    />
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        id="gameName"
+                        type="text"
+                        placeholder="Your Free Fire name"
+                        value={gameName}
+                        onChange={(e) => setGameName(e.target.value)}
+                        className="pl-10 bg-muted border-border"
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2 animate-fade-in">
                     <Label htmlFor="telegramId" className="text-foreground">
@@ -175,33 +226,23 @@ export default function Auth() {
               )}
 
               {/* Submit Button */}
-              <Button type="submit" variant="fire" className="w-full group" size="lg">
-                {!otpSent
-                  ? "Send OTP"
-                  : mode === "login"
-                  ? "Login"
-                  : "Create Account"}
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <Button 
+                type="submit" 
+                variant="fire" 
+                className="w-full group" 
+                size="lg"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    {mode === "login" ? "Login" : "Create Account"}
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </Button>
             </form>
-
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            {/* Telegram Login */}
-            <Button variant="neon" className="w-full gap-2">
-              <Send className="w-5 h-5" />
-              Login with Telegram
-            </Button>
           </div>
 
           {/* Terms */}

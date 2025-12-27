@@ -20,11 +20,23 @@ export interface Tournament {
 interface TournamentCardProps {
   tournament: Tournament;
   featured?: boolean;
+  isRegistered?: boolean;
+  onJoin?: () => void;
+  onLeave?: () => void;
 }
 
-export function TournamentCard({ tournament, featured = false }: TournamentCardProps) {
+export function TournamentCard({ tournament, featured = false, isRegistered = false, onJoin, onLeave }: TournamentCardProps) {
   const spotsLeft = tournament.maxPlayers - tournament.currentPlayers;
   const isFull = spotsLeft <= 0;
+
+  const handleAction = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isRegistered && onLeave) {
+      onLeave();
+    } else if (!isRegistered && onJoin) {
+      onJoin();
+    }
+  };
 
   return (
     <div
@@ -121,21 +133,33 @@ export function TournamentCard({ tournament, featured = false }: TournamentCardP
 
         {/* Action Button */}
         <div className="pt-2">
-          <Link to={`/tournament/${tournament.id}`}>
+          {isRegistered ? (
             <Button
-              variant={isFull ? "outline" : "fire"}
+              variant="neon"
               className="w-full"
-              disabled={isFull || tournament.status === "completed"}
+              onClick={handleAction}
+              disabled={tournament.status === "completed"}
             >
-              {isFull
-                ? "Full"
-                : tournament.status === "live"
-                ? "View Match"
-                : tournament.status === "completed"
-                ? "View Results"
-                : "Join Now"}
+              {tournament.status === "live" ? "View Match" : "Leave Tournament"}
             </Button>
-          </Link>
+          ) : (
+            <Link to={`/tournament/${tournament.id}`}>
+              <Button
+                variant={isFull ? "outline" : "fire"}
+                className="w-full"
+                disabled={isFull || tournament.status === "completed"}
+                onClick={onJoin ? handleAction : undefined}
+              >
+                {isFull
+                  ? "Full"
+                  : tournament.status === "live"
+                  ? "View Match"
+                  : tournament.status === "completed"
+                  ? "View Results"
+                  : "Join Now"}
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

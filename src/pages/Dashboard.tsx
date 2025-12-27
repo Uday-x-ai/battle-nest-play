@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import confetti from "canvas-confetti";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -108,6 +109,28 @@ export default function Dashboard() {
             setAutoVerifying(false);
             await refetchWallet();
             await refreshProfile();
+            
+            // Trigger confetti celebration
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+            setTimeout(() => {
+              confetti({
+                particleCount: 50,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 }
+              });
+              confetti({
+                particleCount: 50,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 }
+              });
+            }, 250);
+            
             return true;
           }
         } else if (!isAutoCheck) {

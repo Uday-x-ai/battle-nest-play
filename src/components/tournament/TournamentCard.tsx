@@ -120,21 +120,23 @@ export function TournamentCard({ tournament, featured = false }: TournamentCardP
         </div>
 
         {/* Action Button */}
-        <Link to={`/tournament/${tournament.id}`}>
-          <Button
-            variant={isFull ? "outline" : "fire"}
-            className="w-full"
-            disabled={isFull || tournament.status === "completed"}
-          >
-            {isFull
-              ? "Full"
-              : tournament.status === "live"
-              ? "View Match"
-              : tournament.status === "completed"
-              ? "View Results"
-              : "Join Now"}
-          </Button>
-        </Link>
+        <div className="pt-2">
+          <Link to={`/tournament/${tournament.id}`}>
+            <Button
+              variant={isFull ? "outline" : "fire"}
+              className="w-full"
+              disabled={isFull || tournament.status === "completed"}
+            >
+              {isFull
+                ? "Full"
+                : tournament.status === "live"
+                ? "View Match"
+                : tournament.status === "completed"
+                ? "View Results"
+                : "Join Now"}
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

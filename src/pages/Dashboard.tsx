@@ -190,7 +190,7 @@ export default function Dashboard() {
     return () => clearInterval(timerInterval);
   }, [depositDialogOpen, transactionRef, depositAmount, autoVerifying, timeRemaining]);
 
-  // Separate polling for API calls every 5 seconds
+  // Separate polling for API calls every 2.5 seconds
   useEffect(() => {
     if (!depositDialogOpen || !transactionRef || !depositAmount || !autoVerifying || timeRemaining <= 0) {
       return;
@@ -201,7 +201,7 @@ export default function Dashboard() {
       if (success) {
         setAutoVerifying(false);
       }
-    }, 5000);
+    }, 2500);
 
     return () => clearInterval(pollInterval);
   }, [depositDialogOpen, transactionRef, depositAmount, autoVerifying, verifyPayment, timeRemaining]);

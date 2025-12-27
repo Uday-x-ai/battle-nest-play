@@ -136,14 +136,31 @@ export default function Dashboard() {
     }
   }, [transactionRef, depositAmount, createDepositRequest, refetchWallet, refreshProfile]);
 
-  // Auto-poll for payment verification
+  // Auto-poll for payment verification (max 5 minutes = 60 polls at 5 second intervals)
+  const MAX_POLLS = 60;
+  
   useEffect(() => {
     if (!depositDialogOpen || !transactionRef || !depositAmount || !autoVerifying) {
       return;
     }
 
+    // Stop polling after max attempts
+    if (pollCount >= MAX_POLLS) {
+      setAutoVerifying(false);
+      toast.info("Auto-verification timed out. Please click 'Verify Payment' manually.");
+      return;
+    }
+
     const pollInterval = setInterval(async () => {
-      setPollCount(prev => prev + 1);
+      setPollCount(prev => {
+        if (prev >= MAX_POLLS - 1) {
+          setAutoVerifying(false);
+          toast.info("Auto-verification timed out. Please click 'Verify Payment' manually.");
+          return prev;
+        }
+        return prev + 1;
+      });
+      
       const success = await verifyPayment(true);
       if (success) {
         setAutoVerifying(false);
@@ -152,7 +169,7 @@ export default function Dashboard() {
     }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(pollInterval);
-  }, [depositDialogOpen, transactionRef, depositAmount, autoVerifying, verifyPayment]);
+  }, [depositDialogOpen, transactionRef, depositAmount, autoVerifying, verifyPayment, pollCount]);
 
   // Start auto-verifying when dialog opens
   useEffect(() => {

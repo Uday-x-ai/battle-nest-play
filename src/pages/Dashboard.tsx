@@ -4,6 +4,15 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Wallet,
   Trophy,
@@ -15,21 +24,36 @@ import {
   History,
   Settings,
   Bell,
-  Copy,
   Loader2,
+  CreditCard,
+  CheckCircle,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useTournaments } from "@/hooks/useTournaments";
+import { useDepositRequests } from "@/hooks/useDepositRequests";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const [depositAmount, setDepositAmount] = useState("");
-  const { user, profile, loading } = useAuth();
-  const { transactions, deposit, withdraw } = useWallet();
+  const [upiDialogOpen, setUpiDialogOpen] = useState(false);
+  const [upiId, setUpiId] = useState("");
+  const [savingUpi, setSavingUpi] = useState(false);
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const { transactions, withdraw } = useWallet();
+  const { requests: depositRequests, createRequest } = useDepositRequests();
   const { tournaments, registrations } = useTournaments();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (profile?.upi_id) {
+      setUpiId(profile.upi_id);
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -43,7 +67,7 @@ export default function Dashboard() {
       toast.error("Minimum deposit amount is ₹10");
       return;
     }
-    await deposit(amount);
+    await createRequest(amount);
     setDepositAmount("");
   };
 
@@ -53,8 +77,71 @@ export default function Dashboard() {
       toast.error("Minimum withdrawal amount is ₹100");
       return;
     }
+    if (!profile?.upi_id) {
+      toast.error("Please set your UPI ID first");
+      setUpiDialogOpen(true);
+      return;
+    }
     await withdraw(amount);
     setDepositAmount("");
+  };
+
+  const handleSaveUpi = async () => {
+    if (!user) return;
+    
+    if (!upiId.trim()) {
+      toast.error("Please enter a valid UPI ID");
+      return;
+    }
+
+    const upiRegex = /^[\w.-]+@[\w.-]+$/;
+    if (!upiRegex.test(upiId.trim())) {
+      toast.error("Please enter a valid UPI ID (e.g., name@upi)");
+      return;
+    }
+
+    setSavingUpi(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ upi_id: upiId.trim() })
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast.error("Failed to save UPI ID");
+    } else {
+      toast.success("UPI ID saved successfully!");
+      await refreshProfile();
+      setUpiDialogOpen(false);
+    }
+    setSavingUpi(false);
+  };
+
+  const getRequestStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return (
+          <Badge variant="outline" className="text-yellow-500 border-yellow-500">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </Badge>
+        );
+      case "approved":
+        return (
+          <Badge variant="default" className="bg-green-500">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Approved
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge variant="destructive">
+            <XCircle className="w-3 h-3 mr-1" />
+            Rejected
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
   };
 
   if (loading) {
@@ -79,7 +166,6 @@ export default function Dashboard() {
     winRate: registrations.length > 0 ? ((profile.total_wins / registrations.length) * 100).toFixed(1) : 0,
   };
 
-  // Get recent matches from registrations with tournament data
   const recentMatches = registrations.slice(0, 4).map(reg => {
     const tournament = tournaments.find(t => t.id === reg.tournament_id);
     return {
@@ -120,7 +206,7 @@ export default function Dashboard() {
             <Button variant="ghost" size="icon">
               <Bell className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => setUpiDialogOpen(true)}>
               <Settings className="w-5 h-5" />
             </Button>
           </div>
@@ -168,6 +254,41 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Deposit Requests */}
+            {depositRequests.length > 0 && (
+              <div className="gaming-card">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display font-semibold text-lg text-foreground flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Deposit Requests
+                  </h3>
+                </div>
+                <div className="space-y-3">
+                  {depositRequests.slice(0, 5).map((req) => (
+                    <div
+                      key={req.id}
+                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                          <Plus className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">
+                            ₹{Number(req.amount).toLocaleString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(req.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      {getRequestStatusBadge(req.status)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Recent Matches */}
             <div className="gaming-card">
@@ -285,6 +406,21 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* UPI ID Display */}
+              <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">UPI ID (for withdrawals)</div>
+                    <div className="text-sm font-medium text-foreground">
+                      {profile.upi_id || "Not set"}
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setUpiDialogOpen(true)}>
+                    {profile.upi_id ? "Edit" : "Set"}
+                  </Button>
+                </div>
+              </div>
+
               {/* Deposit Form */}
               <div className="space-y-3">
                 <label className="text-sm text-muted-foreground">
@@ -327,6 +463,36 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* UPI Dialog */}
+      <Dialog open={upiDialogOpen} onOpenChange={setUpiDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Set UPI ID</DialogTitle>
+            <DialogDescription>
+              Enter your UPI ID to receive withdrawals. This is required for processing withdrawal requests.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="yourname@upi"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            className="bg-muted border-border"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setUpiDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="fire" onClick={handleSaveUpi} disabled={savingUpi}>
+              {savingUpi ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Save UPI ID"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

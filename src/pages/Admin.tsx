@@ -35,8 +35,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminTournaments } from "@/hooks/useAdminTournaments";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
+import { useAdminDepositRequests } from "@/hooks/useDepositRequests";
 import { TournamentForm, TournamentFormData } from "@/components/admin/TournamentForm";
 import { UserManagement } from "@/components/admin/UserManagement";
+import { DepositRequestsManagement } from "@/components/admin/DepositRequestsManagement";
 import { Tournament } from "@/hooks/useTournaments";
 import { format } from "date-fns";
 
@@ -70,6 +72,14 @@ export default function Admin() {
     updateWalletBalance,
     getStats: getUserStats,
   } = useAdminUsers();
+  const {
+    requests: depositRequests,
+    loading: depositLoading,
+    approveRequest,
+    rejectRequest,
+    getStats: getDepositStats,
+    refetch: refetchDeposits,
+  } = useAdminDepositRequests();
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -531,19 +541,16 @@ export default function Admin() {
             />
           )}
 
-          {/* Payments - Placeholder */}
+          {/* Payments - Deposit Requests Management */}
           {activeTab === "payments" && (
-            <div className="space-y-6">
-              <h1 className="font-display font-bold text-2xl text-foreground">
-                Payments
-              </h1>
-              <div className="gaming-card text-center py-12">
-                <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  Payment management coming soon
-                </p>
-              </div>
-            </div>
+            <DepositRequestsManagement
+              requests={depositRequests}
+              loading={depositLoading}
+              onRefresh={refetchDeposits}
+              onApprove={approveRequest}
+              onReject={rejectRequest}
+              stats={getDepositStats()}
+            />
           )}
         </main>
       </div>

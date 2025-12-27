@@ -30,7 +30,10 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  QrCode,
+  Copy,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -580,29 +583,69 @@ export default function Dashboard() {
 
       {/* Deposit Dialog */}
       <Dialog open={depositDialogOpen} onOpenChange={setDepositDialogOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Money via UPI</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-primary" />
+              Add Money via UPI
+            </DialogTitle>
             <DialogDescription>
-              Pay ₹{depositAmount} to the UPI ID below and enter the transaction ID to verify your payment.
+              Scan the QR code or pay to the UPI ID below, then enter the transaction ID.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-4 bg-muted/50 rounded-lg text-center">
-              <div className="text-sm text-muted-foreground mb-1">Pay to UPI ID</div>
-              <div className="font-display font-bold text-lg text-primary">admin@upi</div>
-              <div className="text-xs text-muted-foreground mt-2">Amount: ₹{depositAmount}</div>
+            {/* QR Code Section */}
+            <div className="flex flex-col items-center p-4 bg-white rounded-lg">
+              <QRCodeSVG
+                value={`upi://pay?pa=admin@upi&pn=GameArena&am=${depositAmount}&cu=INR&tn=Deposit`}
+                size={180}
+                level="H"
+                includeMargin
+                imageSettings={{
+                  src: "",
+                  height: 0,
+                  width: 0,
+                  excavate: false,
+                }}
+              />
+              <div className="mt-3 text-center">
+                <div className="font-display font-bold text-2xl text-black">
+                  ₹{depositAmount}
+                </div>
+              </div>
             </div>
+
+            {/* UPI ID Display */}
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Pay to UPI ID</div>
+                  <div className="font-display font-semibold text-primary">admin@upi</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText("admin@upi");
+                    toast.success("UPI ID copied!");
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Transaction ID Input */}
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground">UPI Transaction ID</label>
               <Input
-                placeholder="Enter your UPI transaction ID"
+                placeholder="Enter your 12-digit UPI transaction ID"
                 value={upiTransactionId}
                 onChange={(e) => setUpiTransactionId(e.target.value)}
                 className="bg-muted border-border"
               />
               <p className="text-xs text-muted-foreground">
-                You can find this in your UPI app after making the payment
+                Find this in your UPI app under payment details after completing the payment
               </p>
             </div>
           </div>

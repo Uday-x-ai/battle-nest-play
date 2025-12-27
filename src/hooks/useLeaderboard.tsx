@@ -34,6 +34,28 @@ export function useLeaderboard() {
 
   useEffect(() => {
     fetchLeaderboard();
+
+    // Subscribe to real-time updates for profiles (leaderboard data)
+    const channel = supabase
+      .channel('leaderboard-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log('Leaderboard update:', payload);
+          // Refetch to recalculate rankings when any profile updates
+          fetchLeaderboard();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return {

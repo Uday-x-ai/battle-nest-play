@@ -35,10 +35,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminTournaments } from "@/hooks/useAdminTournaments";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
-import { useAdminDepositRequests } from "@/hooks/useDepositRequests";
+import { useAdminWithdrawalRequests } from "@/hooks/useWithdrawalRequests";
 import { TournamentForm, TournamentFormData } from "@/components/admin/TournamentForm";
 import { UserManagement } from "@/components/admin/UserManagement";
-import { DepositRequestsManagement } from "@/components/admin/DepositRequestsManagement";
+import { WithdrawalRequestsManagement } from "@/components/admin/WithdrawalRequestsManagement";
 import { Tournament } from "@/hooks/useTournaments";
 import { format } from "date-fns";
 
@@ -73,13 +73,13 @@ export default function Admin() {
     getStats: getUserStats,
   } = useAdminUsers();
   const {
-    requests: depositRequests,
-    loading: depositLoading,
+    requests: withdrawalRequests,
+    loading: withdrawalLoading,
     approveRequest,
     rejectRequest,
-    getStats: getDepositStats,
-    refetch: refetchDeposits,
-  } = useAdminDepositRequests();
+    getStats: getWithdrawalStats,
+    refetch: refetchWithdrawals,
+  } = useAdminWithdrawalRequests();
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -541,15 +541,15 @@ export default function Admin() {
             />
           )}
 
-          {/* Payments - Deposit Requests Management */}
+          {/* Payments - Withdrawal Requests Management */}
           {activeTab === "payments" && (
-            <DepositRequestsManagement
-              requests={depositRequests}
-              loading={depositLoading}
-              onRefresh={refetchDeposits}
+            <WithdrawalRequestsManagement
+              requests={withdrawalRequests}
+              loading={withdrawalLoading}
+              onRefresh={refetchWithdrawals}
               onApprove={approveRequest}
               onReject={rejectRequest}
-              stats={getDepositStats()}
+              stats={getWithdrawalStats()}
             />
           )}
         </main>

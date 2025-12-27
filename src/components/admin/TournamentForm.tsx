@@ -46,13 +46,17 @@ export interface TournamentFormData {
 }
 
 const tournamentTypes = [
-  { value: "solo", label: "Solo", icon: "👤" },
-  { value: "duo", label: "Duo", icon: "👥" },
-  { value: "squad", label: "Squad", icon: "🎮" },
-  { value: "clash_squad", label: "Clash Squad", icon: "⚔️" },
-  { value: "br_ranked", label: "BR Ranked", icon: "🏆" },
-  { value: "lone_wolf", label: "Lone Wolf", icon: "🐺" },
+  { value: "solo", label: "Solo", icon: "👤", defaultPlayers: 48, maxLimit: 50, minLimit: 12, description: "48 players battle royale" },
+  { value: "duo", label: "Duo", icon: "👥", defaultPlayers: 24, maxLimit: 25, minLimit: 6, description: "24 teams (48 players)" },
+  { value: "squad", label: "Squad", icon: "🎮", defaultPlayers: 12, maxLimit: 13, minLimit: 4, description: "12 squads (48 players)" },
+  { value: "clash_squad", label: "Clash Squad", icon: "⚔️", defaultPlayers: 8, maxLimit: 12, minLimit: 4, description: "4v4 tactical mode" },
+  { value: "br_ranked", label: "BR Ranked", icon: "🏆", defaultPlayers: 48, maxLimit: 50, minLimit: 12, description: "Ranked battle royale" },
+  { value: "lone_wolf", label: "Lone Wolf", icon: "🐺", defaultPlayers: 2, maxLimit: 2, minLimit: 2, description: "1v1 duel mode" },
 ];
+
+const getModeConfig = (mode: string) => {
+  return tournamentTypes.find(t => t.value === mode) || tournamentTypes[0];
+};
 
 const mapOptions = [
   { value: "bermuda", label: "Bermuda" },
@@ -169,24 +173,35 @@ export function TournamentForm({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="type">Type</Label>
+              <Label htmlFor="type">Game Mode</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, type: value })
-                }
+                onValueChange={(value) => {
+                  const config = getModeConfig(value);
+                  setFormData({ 
+                    ...formData, 
+                    type: value,
+                    max_players: config.defaultPlayers
+                  });
+                }}
               >
                 <SelectTrigger className="bg-muted border-border">
-                  <SelectValue placeholder="Select type" />
+                  <SelectValue placeholder="Select mode" />
                 </SelectTrigger>
                 <SelectContent>
                   {tournamentTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
-                      {type.label}
+                      <span className="flex items-center gap-2">
+                        <span>{type.icon}</span>
+                        <span>{type.label}</span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {getModeConfig(formData.type).description}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -245,15 +260,23 @@ export function TournamentForm({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="max_players">Max Players</Label>
+              <Label htmlFor="max_players">
+                Max Players/Teams
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({getModeConfig(formData.type).minLimit}-{getModeConfig(formData.type).maxLimit})
+                </span>
+              </Label>
               <Input
                 id="max_players"
                 type="number"
-                min="2"
+                min={getModeConfig(formData.type).minLimit}
+                max={getModeConfig(formData.type).maxLimit}
                 value={formData.max_players}
-                onChange={(e) =>
-                  setFormData({ ...formData, max_players: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  const config = getModeConfig(formData.type);
+                  const value = Math.min(Math.max(Number(e.target.value), config.minLimit), config.maxLimit);
+                  setFormData({ ...formData, max_players: value });
+                }}
                 className="bg-muted border-border"
                 required
               />

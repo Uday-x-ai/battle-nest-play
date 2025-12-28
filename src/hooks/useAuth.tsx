@@ -23,7 +23,7 @@ interface AuthContextType {
   profile: Profile | null;
   isAdmin: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, metadata?: { game_name?: string; telegram_id?: string }) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata?: { game_name?: string; telegram_id?: string; game_id?: string }) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, metadata?: { game_name?: string; telegram_id?: string }) => {
+  const signUp = async (email: string, password: string, metadata?: { game_name?: string; telegram_id?: string; game_id?: string }) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({

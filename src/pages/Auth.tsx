@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Gamepad2, Mail, Lock, ArrowRight, Loader2, Search, CheckCircle, XCircle, MailCheck, User, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 type AuthMode = "login" | "register";
@@ -135,6 +136,19 @@ export default function Auth() {
           navigate("/dashboard");
         }
       } else {
+        // Check if game_id is already in use
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("game_id", gameId)
+          .maybeSingle();
+
+        if (existingProfile) {
+          toast.error("This Game ID is already registered with another account.");
+          setIsLoading(false);
+          return;
+        }
+
         const { error } = await signUp(email, password, {
           game_name: gameAccountInfo?.nickname || "",
           telegram_id: telegramId || undefined,

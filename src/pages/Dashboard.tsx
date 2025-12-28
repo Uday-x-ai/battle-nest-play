@@ -34,7 +34,10 @@ import {
   QrCode,
   Copy,
   RefreshCw,
+  AlertTriangle,
+  Mail,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -319,6 +322,17 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
+        {/* Email Verification Warning */}
+        {user && !user.email_confirmed_at && (
+          <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <AlertDescription className="flex items-center gap-2 text-yellow-500">
+              <Mail className="h-4 w-4" />
+              Please verify your email address to access all features. Check your inbox for the verification link.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">

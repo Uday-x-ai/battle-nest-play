@@ -107,6 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
                 .container { max-width: 500px; margin: 0 auto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid #ff6b35; }
                 .logo { text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 30px; }
                 .logo .ff { background: linear-gradient(135deg, #ff6b35, #f7931e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+                .logo .arena { color: #ffffff; }
                 .title { text-align: center; font-size: 24px; margin-bottom: 20px; color: #ffffff; }
                 .otp-box { background: linear-gradient(135deg, #ff6b35, #f7931e); border-radius: 12px; padding: 20px; text-align: center; margin: 30px 0; }
                 .otp-code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #ffffff; }
@@ -116,7 +117,7 @@ const handler = async (req: Request): Promise<Response> => {
             </head>
             <body>
               <div class="container">
-                <div class="logo"><span class="ff">FF</span>Arena</div>
+                <div class="logo"><span class="ff">FF</span><span class="arena">Arena</span></div>
                 <div class="title">Email Verification</div>
                 <p class="message">Use the following verification code to complete your registration:</p>
                 <div class="otp-box">

@@ -520,30 +520,30 @@ export default function Admin() {
                   </div>
 
                   {/* Desktop Table View */}
-                  <div className="gaming-card hidden md:block">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
+                  <div className="gaming-card hidden md:block overflow-hidden">
+                    <div className="overflow-x-auto -mx-4 px-4 md:-mx-6 md:px-6">
+                      <table className="w-full min-w-[700px]">
                         <thead>
                           <tr className="border-b border-border">
-                            <th className="text-left py-3 px-4 text-sm text-muted-foreground">
+                            <th className="text-left py-3 px-2 lg:px-4 text-sm text-muted-foreground">
                               Tournament
                             </th>
-                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                            <th className="text-center py-3 px-2 lg:px-4 text-sm text-muted-foreground">
                               Type
                             </th>
-                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                            <th className="text-center py-3 px-2 lg:px-4 text-sm text-muted-foreground">
                               Players
                             </th>
-                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                            <th className="text-center py-3 px-2 lg:px-4 text-sm text-muted-foreground">
                               Prize
                             </th>
-                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                            <th className="text-center py-3 px-2 lg:px-4 text-sm text-muted-foreground hidden lg:table-cell">
                               Start Time
                             </th>
-                            <th className="text-center py-3 px-4 text-sm text-muted-foreground">
+                            <th className="text-center py-3 px-2 lg:px-4 text-sm text-muted-foreground">
                               Status
                             </th>
-                            <th className="text-right py-3 px-4 text-sm text-muted-foreground">
+                            <th className="text-right py-3 px-2 lg:px-4 text-sm text-muted-foreground">
                               Actions
                             </th>
                           </tr>
@@ -551,38 +551,42 @@ export default function Admin() {
                         <tbody>
                           {filteredTournaments.map((t) => (
                             <tr key={t.id} className="border-b border-border/50">
-                              <td className="py-4 px-4">
-                                <div className="font-semibold text-foreground">
+                              <td className="py-3 px-2 lg:px-4">
+                                <div className="font-semibold text-foreground truncate max-w-[150px] lg:max-w-none">
                                   {t.title}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
                                   Entry: ₹{t.entry_fee}
                                 </div>
+                                <div className="text-xs text-muted-foreground lg:hidden">
+                                  {format(new Date(t.start_time), "MMM d, h:mm a")}
+                                </div>
                               </td>
-                              <td className="py-4 px-4 text-center">
-                                <Badge variant="outline" className="capitalize">
-                                  {t.type}
+                              <td className="py-3 px-2 lg:px-4 text-center">
+                                <Badge variant="outline" className="capitalize text-xs">
+                                  {t.type.replace('_', ' ')}
                                 </Badge>
                               </td>
-                              <td className="py-4 px-4 text-center text-muted-foreground">
+                              <td className="py-3 px-2 lg:px-4 text-center text-muted-foreground text-sm">
                                 {t.current_players}/{t.max_players}
                               </td>
-                              <td className="py-4 px-4 text-center font-display gradient-text">
+                              <td className="py-3 px-2 lg:px-4 text-center font-display gradient-text text-sm">
                                 ₹{t.prize_pool?.toLocaleString()}
                               </td>
-                              <td className="py-4 px-4 text-center text-sm text-muted-foreground">
+                              <td className="py-3 px-2 lg:px-4 text-center text-sm text-muted-foreground hidden lg:table-cell">
                                 {format(new Date(t.start_time), "MMM d, yyyy h:mm a")}
                               </td>
-                              <td className="py-4 px-4 text-center">
-                                <Badge variant={getStatusBadgeVariant(t.status)}>
+                              <td className="py-3 px-2 lg:px-4 text-center">
+                                <Badge variant={getStatusBadgeVariant(t.status)} className="text-xs">
                                   {t.status}
                                 </Badge>
                               </td>
-                              <td className="py-4 px-4 text-right">
-                                <div className="flex items-center justify-end gap-1">
+                              <td className="py-3 px-2 lg:px-4 text-right">
+                                <div className="flex items-center justify-end gap-0.5">
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    className="h-8 w-8"
                                     onClick={() => navigate(`/tournaments/${t.id}`)}
                                   >
                                     <Eye className="w-4 h-4" />
@@ -590,6 +594,7 @@ export default function Admin() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    className="h-8 w-8"
                                     onClick={() => handleEditTournament(t)}
                                   >
                                     <Edit className="w-4 h-4" />
@@ -597,7 +602,7 @@ export default function Admin() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="text-destructive hover:text-destructive"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
                                     onClick={() => setDeletingTournament(t)}
                                   >
                                     <Trash2 className="w-4 h-4" />

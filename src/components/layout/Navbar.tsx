@@ -4,7 +4,7 @@ import { Menu, X, Wallet, Trophy, User, Shield, Gamepad2, LogOut, BarChart3 } fr
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-
+import { ThemeToggle } from "@/components/ThemeToggle";
 const navLinks = [
   { href: "/", label: "Home", icon: Gamepad2 },
   { href: "/tournaments", label: "Tournaments", icon: Trophy },
@@ -63,6 +63,7 @@ export function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-2">
+            <ThemeToggle />
             {user ? (
               <>
                 <Link to="/dashboard">

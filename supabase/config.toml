@@ -2,3 +2,6 @@ project_id = "htxuhscatooeuebkiisb"
 
 [functions.verify-payment]
 verify_jwt = false
+
+[functions.send-otp]
+verify_jwt = false

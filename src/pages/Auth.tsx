@@ -112,16 +112,21 @@ export default function Auth() {
 
     setIsVerifyingOtp(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-otp?action=verify", {
-        body: { email, otp },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp?action=verify`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, otp }),
+        }
+      );
 
-      if (error) {
-        throw error;
-      }
+      const data = await response.json();
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to verify OTP");
       }
 
       toast.success("Email verified successfully!");

@@ -7,6 +7,7 @@ interface Profile {
   user_id: string;
   username: string | null;
   game_name: string | null;
+  game_id: string | null;
   telegram_id: string | null;
   avatar_url: string | null;
   wallet_balance: number;

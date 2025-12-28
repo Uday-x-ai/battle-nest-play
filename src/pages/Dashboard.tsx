@@ -43,6 +43,8 @@ import { useWallet } from "@/hooks/useWallet";
 import { useTournaments } from "@/hooks/useTournaments";
 import { useWithdrawalRequests } from "@/hooks/useWithdrawalRequests";
 import { useDepositRequests } from "@/hooks/useDepositRequests";
+import { useFreefireStats } from "@/hooks/useFreefireStats";
+import { FreefireStatsCard } from "@/components/dashboard/FreefireStatsCard";
 import { supabase } from "@/integrations/supabase/client";
 
 // Generate random transaction reference for UPI
@@ -67,6 +69,7 @@ export default function Dashboard() {
   const { requests: withdrawalRequests, createRequest: createWithdrawalRequest } = useWithdrawalRequests();
   const { requests: depositRequests, createRequest: createDepositRequest, createApprovedDeposit } = useDepositRequests();
   const { tournaments, registrations } = useTournaments();
+  const { stats: ffStats, loading: ffLoading, error: ffError, refetch: refetchFFStats } = useFreefireStats(profile?.game_id);
   const navigate = useNavigate();
 
   // Generate new transaction ref when deposit dialog opens
@@ -385,6 +388,16 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Free Fire Stats */}
+            {profile.game_id && (
+              <FreefireStatsCard 
+                stats={ffStats} 
+                loading={ffLoading} 
+                error={ffError} 
+                onRefresh={refetchFFStats} 
+              />
+            )}
 
             {/* Deposit Requests */}
             {depositRequests.length > 0 && (

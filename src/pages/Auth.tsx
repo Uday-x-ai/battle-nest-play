@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 type AuthMode = "login" | "register";
-type AuthStep = "form" | "email-sent";
+type AuthStep = "form" | "email-sent" | "verifying" | "verified";
 
 interface GameAccountInfo {
   nickname: string;
@@ -36,12 +36,62 @@ export default function Auth() {
   const [isGameIdConfirmed, setIsGameIdConfirmed] = useState(false);
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Handle email verification from URL
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const token = searchParams.get("token");
+    const emailParam = searchParams.get("email");
+
+    if (action === "verify" && token && emailParam) {
+      setAuthStep("verifying");
+      verifyEmail(token, emailParam);
+    }
+  }, [searchParams]);
+
+  const verifyEmail = async (token: string, emailToVerify: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-verification-email", {
+        body: { token, email: emailToVerify },
+        headers: { "Content-Type": "application/json" },
+      });
+
+      // Add query param for action=verify
+      const response = await fetch(
+        `https://htxuhscatooeuebkiisb.supabase.co/functions/v1/send-verification-email?action=verify`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, email: emailToVerify }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        setAuthStep("verified");
+        toast.success("Email verified successfully! You can now login.");
+      } else {
+        toast.error(result.error || "Verification failed. The link may be expired.");
+        setAuthStep("form");
+        setMode("login");
+      }
+    } catch (error) {
+      console.error("Verification error:", error);
+      toast.error("Verification failed. Please try again.");
+      setAuthStep("form");
+      setMode("login");
+    }
+  };
 
   // Reset when switching modes
   useEffect(() => {
     setGameAccountInfo(null);
     setIsGameIdConfirmed(false);
-    setAuthStep("form");
+    if (authStep !== "verifying" && authStep !== "verified") {
+      setAuthStep("form");
+    }
   }, [mode]);
 
   useEffect(() => {
@@ -161,8 +211,30 @@ export default function Auth() {
             toast.error(error.message);
           }
         } else {
-          toast.success("Account created! Please check your email for the verification link.");
-          setAuthStep("email-sent");
+          // Send custom verification email via SMTP
+          try {
+            const response = await fetch(
+              `https://htxuhscatooeuebkiisb.supabase.co/functions/v1/send-verification-email?action=send`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  email, 
+                  redirectTo: window.location.origin 
+                }),
+              }
+            );
+            const result = await response.json();
+            if (result.success) {
+              toast.success("Account created! Please check your email for the verification link.");
+              setAuthStep("email-sent");
+            } else {
+              toast.error("Account created but failed to send verification email. Please contact support.");
+            }
+          } catch (emailError) {
+            console.error("Error sending verification email:", emailError);
+            toast.error("Account created but failed to send verification email.");
+          }
         }
       }
     } catch (err) {
@@ -220,7 +292,44 @@ export default function Auth() {
           </div>
 
           <div className="gaming-card neon-border">
-            {authStep === "email-sent" ? (
+            {authStep === "verifying" ? (
+              // Verifying email step
+              <div className="space-y-6">
+                <div className="text-center">
+                  <Loader2 className="w-16 h-16 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-foreground font-medium">Verifying your email...</p>
+                  <p className="text-sm text-muted-foreground mt-2">Please wait a moment</p>
+                </div>
+              </div>
+            ) : authStep === "verified" ? (
+              // Verified success step
+              <div className="space-y-6">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                  </div>
+                  <p className="text-foreground font-medium text-lg">Email Verified!</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Your account is now active. You can login to start playing.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="fire"
+                  onClick={() => {
+                    setAuthStep("form");
+                    setMode("login");
+                    // Clear URL params
+                    navigate("/auth", { replace: true });
+                  }}
+                  className="w-full"
+                >
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  Login Now
+                </Button>
+              </div>
+            ) : authStep === "email-sent" ? (
               // Email Sent Confirmation Step (after registration)
               <div className="space-y-6">
                 <div className="text-center">

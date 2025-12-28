@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Tournament } from "@/hooks/useTournaments";
 
 interface TournamentFormProps {
@@ -351,32 +352,57 @@ export function TournamentForm({
           </div>
 
           {/* Room Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="room_id">Room ID</Label>
-              <Input
-                id="room_id"
-                value={formData.room_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, room_id: e.target.value })
-                }
-                placeholder="Enter room ID"
-                className="bg-muted border-border"
-              />
+          <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <QrCode className="w-4 h-4 text-primary" />
+              <span>Room Details</span>
+              <span className="text-xs text-muted-foreground">(Can be updated anytime)</span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="room_id">Room ID</Label>
+                <Input
+                  id="room_id"
+                  value={formData.room_id}
+                  onChange={(e) =>
+                    setFormData({ ...formData, room_id: e.target.value })
+                  }
+                  placeholder="Enter room ID"
+                  className="bg-background border-border"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="room_password">Room Password</Label>
+                <Input
+                  id="room_password"
+                  value={formData.room_password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, room_password: e.target.value })
+                  }
+                  placeholder="Enter password"
+                  className="bg-background border-border"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="room_password">Room Password</Label>
-              <Input
-                id="room_password"
-                value={formData.room_password}
-                onChange={(e) =>
-                  setFormData({ ...formData, room_password: e.target.value })
-                }
-                placeholder="Enter password"
-                className="bg-muted border-border"
-              />
-            </div>
+            {/* QR Code Preview */}
+            {(formData.room_id || formData.room_password) && (
+              <div className="flex flex-col items-center gap-2 pt-2">
+                <p className="text-xs text-muted-foreground">Room QR Code Preview</p>
+                <div className="bg-white p-3 rounded-lg">
+                  <QRCodeSVG
+                    value={`Room ID: ${formData.room_id || 'N/A'}\nPassword: ${formData.room_password || 'N/A'}`}
+                    size={120}
+                    level="M"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center max-w-[200px]">
+                  Players can scan this to get room details
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

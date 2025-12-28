@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Trophy, BarChart3, User, Shield, LogOut, Wallet, Gamepad2 } from "lucide-react";
+import { Home, Trophy, BarChart3, User, Shield, LogOut, Wallet, Gamepad2, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "next-themes";
 import {
   Sheet,
   SheetContent,
@@ -23,6 +24,7 @@ export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, isAdmin, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -48,21 +50,33 @@ export function BottomNav() {
               </span>
             </Link>
 
-            {/* Wallet Balance / Login */}
-            {user ? (
-              <Link to="/dashboard">
-                <Button variant="neon" size="sm" className="gap-1.5 px-3 h-9">
-                  <Wallet className="w-4 h-4" />
-                  <span>₹{(profile?.wallet_balance || 0).toFixed(0)}</span>
-                </Button>
-              </Link>
-            ) : (
-              <Link to="/auth">
-                <Button variant="fire" size="sm" className="px-4 h-9">
-                  Login
-                </Button>
-              </Link>
-            )}
+            {/* Theme Toggle & Wallet Balance / Login */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+              {user ? (
+                <Link to="/dashboard">
+                  <Button variant="neon" size="sm" className="gap-1.5 px-3 h-9">
+                    <Wallet className="w-4 h-4" />
+                    <span>₹{(profile?.wallet_balance || 0).toFixed(0)}</span>
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/auth">
+                  <Button variant="fire" size="sm" className="px-4 h-9">
+                    Login
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </header>

@@ -105,7 +105,7 @@ export default function Leaderboard() {
 
                 {/* 1st Place */}
                 <div className="order-1 md:order-2">
-                  <div className="gaming-card neon-border text-center relative bg-gradient-to-b from-gold/10 to-transparent flex md:block items-center gap-4 p-4 md:p-6">
+                  <div className="gaming-card neon-border text-center relative bg-gradient-to-b from-gold/10 to-transparent flex md:block items-center gap-4 p-4 md:p-6 md:overflow-visible">
                     <div className="relative md:absolute md:-top-8 md:left-1/2 md:-translate-x-1/2 shrink-0">
                       <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-r from-gold to-amber-600 flex items-center justify-center shadow-[0_0_30px_hsl(var(--gold)/0.5)]">
                         <Crown className="w-6 h-6 md:w-8 md:h-8 text-background" />

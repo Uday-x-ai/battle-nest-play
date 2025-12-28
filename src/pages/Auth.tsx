@@ -4,15 +4,13 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Gamepad2, Mail, Lock, User, Send, ArrowRight, Loader2, Search, CheckCircle, XCircle, KeyRound } from "lucide-react";
+import { Gamepad2, Mail, Lock, ArrowRight, Loader2, Search, CheckCircle, XCircle, MailCheck, User, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 type AuthMode = "login" | "register";
-type AuthStep = "form" | "email-verification";
+type AuthStep = "form" | "email-sent";
 
 interface GameAccountInfo {
   nickname: string;
@@ -31,14 +29,10 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [gameId, setGameId] = useState("");
   const [telegramId, setTelegramId] = useState("");
-  const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [gameAccountInfo, setGameAccountInfo] = useState<GameAccountInfo | null>(null);
   const [isGameIdConfirmed, setIsGameIdConfirmed] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -47,83 +41,12 @@ export default function Auth() {
     setGameAccountInfo(null);
     setIsGameIdConfirmed(false);
     setAuthStep("form");
-    setOtp("");
   }, [mode]);
 
   useEffect(() => {
     setGameAccountInfo(null);
     setIsGameIdConfirmed(false);
   }, [gameId]);
-
-  // Resend timer countdown
-  useEffect(() => {
-    if (resendTimer > 0) {
-      const interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [resendTimer]);
-
-  const sendOtp = async () => {
-    setIsSendingOtp(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("send-otp", {
-        body: { email },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      toast.success("OTP sent to your email!");
-      setResendTimer(60);
-    } catch (error: any) {
-      console.error("Error sending OTP:", error);
-      toast.error(error.message || "Failed to send OTP");
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  const verifyOtp = async () => {
-    if (otp.length !== 6) {
-      toast.error("Please enter a valid 6-digit OTP");
-      return;
-    }
-
-    setIsVerifyingOtp(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp?action=verify`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, otp }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to verify OTP");
-      }
-
-      toast.success("Email verified! Welcome to FF Arena!");
-      navigate("/dashboard");
-    } catch (error: any) {
-      console.error("Error verifying OTP:", error);
-      toast.error(error.message || "Invalid or expired OTP");
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
 
   const verifyGameId = async () => {
     try {
@@ -224,10 +147,8 @@ export default function Auth() {
             toast.error(error.message);
           }
         } else {
-          toast.success("Account created! Please verify your email.");
-          // Send OTP after successful registration
-          await sendOtp();
-          setAuthStep("email-verification");
+          toast.success("Account created! Please check your email for the verification link.");
+          setAuthStep("email-sent");
         }
       }
     } catch (err) {
@@ -269,93 +190,57 @@ export default function Auth() {
               </span>
             </Link>
             <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-2">
-              {authStep === "email-verification" 
-                ? "Verify Your Email" 
+              {authStep === "email-sent" 
+                ? "Check Your Email" 
                 : mode === "login" 
                   ? "Welcome Back" 
                   : "Create Account"}
             </h1>
             <p className="text-muted-foreground">
-              {authStep === "email-verification"
-                ? "Enter the OTP sent to your email"
+              {authStep === "email-sent"
+                ? "We've sent you a verification link"
                 : mode === "login"
                   ? "Login to continue your journey"
                   : "Join thousands of players today"}
             </p>
           </div>
 
-          {/* Auth Card */}
           <div className="gaming-card neon-border">
-            {authStep === "email-verification" ? (
-              // Email Verification Step (after registration)
+            {authStep === "email-sent" ? (
+              // Email Sent Confirmation Step (after registration)
               <div className="space-y-6">
                 <div className="text-center">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-r from-fire-orange to-fire-red flex items-center justify-center mx-auto mb-4">
-                    <KeyRound className="w-8 h-8 text-primary-foreground" />
+                    <MailCheck className="w-8 h-8 text-primary-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    We've sent a 6-digit code to<br />
-                    <span className="text-foreground font-medium">{email}</span>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    We've sent a verification link to
                   </p>
+                  <p className="text-foreground font-medium">{email}</p>
                 </div>
 
-                <div className="flex justify-center">
-                  <InputOTP
-                    maxLength={6}
-                    value={otp}
-                    onChange={setOtp}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
+                <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Click the link in your email to verify your account. Once verified, you can login and start playing!
+                  </p>
                 </div>
 
                 <Button
                   type="button"
                   variant="fire"
-                  onClick={verifyOtp}
-                  disabled={isVerifyingOtp || otp.length !== 6}
+                  onClick={() => {
+                    setAuthStep("form");
+                    setMode("login");
+                  }}
                   className="w-full"
                 >
-                  {isVerifyingOtp ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Verify & Continue
-                    </>
-                  )}
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  Go to Login
                 </Button>
 
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Didn't receive the code?
-                  </p>
-                  {resendTimer > 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Resend in <span className="text-foreground font-medium">{resendTimer}s</span>
-                    </p>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={sendOtp}
-                      disabled={isSendingOtp}
-                      className="text-primary hover:text-primary/80"
-                    >
-                      {isSendingOtp ? "Sending..." : "Resend OTP"}
-                    </Button>
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Didn't receive the email? Check your spam folder or try registering again.
+                </p>
               </div>
             ) : (
               <>

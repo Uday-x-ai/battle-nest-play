@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 type AuthMode = "login" | "register";
-type RegisterStep = "details" | "otp-verification";
+type AuthStep = "form" | "email-verification";
 
 interface GameAccountInfo {
   nickname: string;
@@ -26,7 +26,7 @@ const gameIdSchema = z.string().trim().min(6, "Game ID must be at least 6 charac
 
 export default function Auth() {
   const [mode, setMode] = useState<AuthMode>("login");
-  const [registerStep, setRegisterStep] = useState<RegisterStep>("details");
+  const [authStep, setAuthStep] = useState<AuthStep>("form");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [gameId, setGameId] = useState("");
@@ -38,18 +38,15 @@ export default function Auth() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [gameAccountInfo, setGameAccountInfo] = useState<GameAccountInfo | null>(null);
   const [isGameIdConfirmed, setIsGameIdConfirmed] = useState(false);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
 
-  // Reset game verification when switching modes or changing game ID
+  // Reset when switching modes
   useEffect(() => {
     setGameAccountInfo(null);
     setIsGameIdConfirmed(false);
-    setRegisterStep("details");
-    setIsEmailVerified(false);
+    setAuthStep("form");
     setOtp("");
   }, [mode]);
 
@@ -69,15 +66,6 @@ export default function Auth() {
   }, [resendTimer]);
 
   const sendOtp = async () => {
-    try {
-      emailSchema.parse(email);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        toast.error(err.errors[0].message);
-      }
-      return;
-    }
-
     setIsSendingOtp(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-otp", {
@@ -93,9 +81,7 @@ export default function Auth() {
       }
 
       toast.success("OTP sent to your email!");
-      setOtpSentAt(Date.now());
       setResendTimer(60);
-      setRegisterStep("otp-verification");
     } catch (error: any) {
       console.error("Error sending OTP:", error);
       toast.error(error.message || "Failed to send OTP");
@@ -129,8 +115,8 @@ export default function Auth() {
         throw new Error(data.error || "Failed to verify OTP");
       }
 
-      toast.success("Email verified successfully!");
-      setIsEmailVerified(true);
+      toast.success("Email verified! Welcome to FF Arena!");
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Error verifying OTP:", error);
       toast.error(error.message || "Invalid or expired OTP");
@@ -190,12 +176,6 @@ export default function Auth() {
     setGameId("");
   };
 
-  const goBackToDetails = () => {
-    setRegisterStep("details");
-    setOtp("");
-    setIsEmailVerified(false);
-  };
-
   useEffect(() => {
     if (!loading && user) {
       navigate("/dashboard");
@@ -212,11 +192,6 @@ export default function Auth() {
       passwordSchema.parse(password);
       
       if (mode === "register") {
-        if (!isEmailVerified) {
-          toast.error("Please verify your email first");
-          setIsLoading(false);
-          return;
-        }
         if (!isGameIdConfirmed || !gameAccountInfo) {
           toast.error("Please verify and confirm your Game ID first");
           setIsLoading(false);
@@ -249,8 +224,10 @@ export default function Auth() {
             toast.error(error.message);
           }
         } else {
-          toast.success("Account created successfully!");
-          navigate("/dashboard");
+          toast.success("Account created! Please verify your email.");
+          // Send OTP after successful registration
+          await sendOtp();
+          setAuthStep("email-verification");
         }
       }
     } catch (err) {
@@ -292,307 +269,25 @@ export default function Auth() {
               </span>
             </Link>
             <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-2">
-              {mode === "login" ? "Welcome Back" : registerStep === "otp-verification" ? "Verify Email" : "Create Account"}
+              {authStep === "email-verification" 
+                ? "Verify Your Email" 
+                : mode === "login" 
+                  ? "Welcome Back" 
+                  : "Create Account"}
             </h1>
             <p className="text-muted-foreground">
-              {mode === "login"
-                ? "Login to continue your journey"
-                : registerStep === "otp-verification"
+              {authStep === "email-verification"
                 ? "Enter the OTP sent to your email"
-                : "Join thousands of players today"}
+                : mode === "login"
+                  ? "Login to continue your journey"
+                  : "Join thousands of players today"}
             </p>
           </div>
 
           {/* Auth Card */}
           <div className="gaming-card neon-border">
-            {/* Tabs */}
-            <div className="flex mb-6 bg-muted rounded-lg p-1">
-              <button
-                className={`flex-1 py-2.5 rounded-md font-display font-semibold transition-all ${
-                  mode === "login"
-                    ? "bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground shadow-glow-orange"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setMode("login")}
-              >
-                Login
-              </button>
-              <button
-                className={`flex-1 py-2.5 rounded-md font-display font-semibold transition-all ${
-                  mode === "register"
-                    ? "bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground shadow-glow-orange"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setMode("register")}
-              >
-                Register
-              </button>
-            </div>
-
-            {mode === "login" ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-foreground">
-                    Email Address
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 bg-muted border-border"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-foreground">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 bg-muted border-border"
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <Button 
-                  type="submit" 
-                  variant="fire" 
-                  className="w-full group" 
-                  size="lg"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <>
-                      Login
-                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </Button>
-              </form>
-            ) : registerStep === "details" ? (
-              <div className="space-y-4">
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-foreground">
-                    Email Address
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 bg-muted border-border"
-                      disabled={isEmailVerified}
-                      required
-                    />
-                    {isEmailVerified && (
-                      <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Email Verified Badge */}
-                {isEmailVerified ? (
-                  <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <span className="text-sm text-green-500 font-medium">Email verified successfully!</span>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={sendOtp}
-                    disabled={isSendingOtp || !email}
-                    className="w-full"
-                  >
-                    {isSendingOtp ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Sending OTP...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-4 h-4 mr-2" />
-                        Send Verification OTP
-                      </>
-                    )}
-                  </Button>
-                )}
-
-                {/* Password */}
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-foreground">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 bg-muted border-border"
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                </div>
-
-                {/* Game ID Verification */}
-                <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="gameId" className="text-foreground">
-                    Free Fire Game ID
-                  </Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Gamepad2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                      <Input
-                        id="gameId"
-                        type="text"
-                        placeholder="Enter your Game ID (e.g., 3659196149)"
-                        value={gameId}
-                        onChange={(e) => setGameId(e.target.value)}
-                        className="pl-10 bg-muted border-border"
-                        disabled={isGameIdConfirmed}
-                        required
-                      />
-                    </div>
-                    {!isGameIdConfirmed && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={verifyGameId}
-                        disabled={isVerifying || !gameId}
-                        className="shrink-0"
-                      >
-                        {isVerifying ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Search className="w-4 h-4" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Game Account Info Card */}
-                {gameAccountInfo && !isGameIdConfirmed && (
-                  <div className="animate-fade-in p-4 rounded-lg bg-muted/50 border border-border space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-fire-orange to-fire-red flex items-center justify-center">
-                        <User className="w-6 h-6 text-primary-foreground" />
-                      </div>
-                      <div>
-                        <p className="font-display font-bold text-foreground text-lg">{gameAccountInfo.nickname}</p>
-                        <p className="text-sm text-muted-foreground">Level {gameAccountInfo.level}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="fire"
-                        onClick={confirmGameAccount}
-                        className="flex-1"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Confirm Account
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={resetGameVerification}
-                        className="flex-1"
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Try Different ID
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Confirmed Account Badge */}
-                {isGameIdConfirmed && gameAccountInfo && (
-                  <div className="animate-fade-in p-3 rounded-lg bg-green-500/10 border border-green-500/30 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                      <div>
-                        <p className="font-semibold text-foreground">{gameAccountInfo.nickname}</p>
-                        <p className="text-xs text-muted-foreground">Level {gameAccountInfo.level} • ID: {gameId}</p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={resetGameVerification}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      Change
-                    </Button>
-                  </div>
-                )}
-
-                <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="telegramId" className="text-foreground">
-                    Telegram ID <span className="text-muted-foreground">(Optional)</span>
-                  </Label>
-                  <div className="relative">
-                    <Send className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="telegramId"
-                      type="text"
-                      placeholder="@username"
-                      value={telegramId}
-                      onChange={(e) => setTelegramId(e.target.value)}
-                      className="pl-10 bg-muted border-border"
-                    />
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <Button 
-                  type="button"
-                  onClick={handleSubmit} 
-                  variant="fire" 
-                  className="w-full group" 
-                  size="lg"
-                  disabled={isLoading || !isEmailVerified || !isGameIdConfirmed}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <>
-                      Create Account
-                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            ) : (
-              // OTP Verification Step
+            {authStep === "email-verification" ? (
+              // Email Verification Step (after registration)
               <div className="space-y-6">
                 <div className="text-center">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-r from-fire-orange to-fire-red flex items-center justify-center mx-auto mb-4">
@@ -636,7 +331,7 @@ export default function Auth() {
                   ) : (
                     <>
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Verify OTP
+                      Verify & Continue
                     </>
                   )}
                 </Button>
@@ -661,17 +356,264 @@ export default function Auth() {
                     </Button>
                   )}
                 </div>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={goBackToDetails}
-                  className="w-full"
-                >
-                  <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
-                  Back to Details
-                </Button>
               </div>
+            ) : (
+              <>
+                {/* Tabs */}
+                <div className="flex mb-6 bg-muted rounded-lg p-1">
+                  <button
+                    className={`flex-1 py-2.5 rounded-md font-display font-semibold transition-all ${
+                      mode === "login"
+                        ? "bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground shadow-glow-orange"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => setMode("login")}
+                  >
+                    Login
+                  </button>
+                  <button
+                    className={`flex-1 py-2.5 rounded-md font-display font-semibold transition-all ${
+                      mode === "register"
+                        ? "bg-gradient-to-r from-fire-orange to-fire-red text-primary-foreground shadow-glow-orange"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => setMode("register")}
+                  >
+                    Register
+                  </button>
+                </div>
+
+                {mode === "login" ? (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-foreground">
+                        Email Address
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="Enter your email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10 bg-muted border-border"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-foreground">
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 bg-muted border-border"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <Button 
+                      type="submit" 
+                      variant="fire" 
+                      className="w-full group" 
+                      size="lg"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          Login
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-foreground">
+                        Email Address
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="Enter your email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10 bg-muted border-border"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-foreground">
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="Create a password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 bg-muted border-border"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Game ID Verification */}
+                    <div className="space-y-2">
+                      <Label htmlFor="gameId" className="text-foreground">
+                        Free Fire Game ID
+                      </Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Gamepad2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                          <Input
+                            id="gameId"
+                            type="text"
+                            placeholder="Enter your Game ID (e.g., 3659196149)"
+                            value={gameId}
+                            onChange={(e) => setGameId(e.target.value)}
+                            className="pl-10 bg-muted border-border"
+                            disabled={isGameIdConfirmed}
+                            required
+                          />
+                        </div>
+                        {!isGameIdConfirmed && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={verifyGameId}
+                            disabled={isVerifying || !gameId}
+                            className="shrink-0"
+                          >
+                            {isVerifying ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Search className="w-4 h-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Game Account Info Card */}
+                    {gameAccountInfo && !isGameIdConfirmed && (
+                      <div className="animate-fade-in p-4 rounded-lg bg-muted/50 border border-border space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-fire-orange to-fire-red flex items-center justify-center">
+                            <User className="w-6 h-6 text-primary-foreground" />
+                          </div>
+                          <div>
+                            <p className="font-display font-bold text-foreground text-lg">{gameAccountInfo.nickname}</p>
+                            <p className="text-sm text-muted-foreground">Level {gameAccountInfo.level}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="fire"
+                            onClick={confirmGameAccount}
+                            className="flex-1"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Confirm Account
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={resetGameVerification}
+                            className="flex-1"
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Try Different ID
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Confirmed Account Badge */}
+                    {isGameIdConfirmed && gameAccountInfo && (
+                      <div className="animate-fade-in p-3 rounded-lg bg-green-500/10 border border-green-500/30 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                          <div>
+                            <p className="font-semibold text-foreground">{gameAccountInfo.nickname}</p>
+                            <p className="text-xs text-muted-foreground">Level {gameAccountInfo.level} • ID: {gameId}</p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={resetGameVerification}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          Change
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="telegramId" className="text-foreground">
+                        Telegram ID <span className="text-muted-foreground">(Optional)</span>
+                      </Label>
+                      <div className="relative">
+                        <Send className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          id="telegramId"
+                          type="text"
+                          placeholder="@username"
+                          value={telegramId}
+                          onChange={(e) => setTelegramId(e.target.value)}
+                          className="pl-10 bg-muted border-border"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <Button 
+                      type="submit"
+                      variant="fire" 
+                      className="w-full group" 
+                      size="lg"
+                      disabled={isLoading || !isGameIdConfirmed}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          Create Account
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </>
             )}
           </div>
 
